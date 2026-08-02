@@ -1,0 +1,432 @@
+import type {
+  BackgroundParams,
+  MusicReactiveParams,
+  ParticleParams,
+  VisualSettings,
+} from '../midi/types';
+import { BACKGROUND_PRESETS } from '../theme/backgroundPresets';
+import { MUSIC_REACTIVE_PRESETS } from '../theme/musicReactivePresets';
+import { PARTICLE_PRESETS } from '../theme/particlePresets';
+import {
+  randomizeBackground,
+  randomizeMusicReactive,
+  randomizeParticles,
+  randomizeVisuals,
+} from '../theme/randomize';
+import { PanelHeader, RandomizeButton } from './RandomizeButton';
+
+// Re-export path keeps HMR happy if a stale chunk still references RandomizeButton
+void RandomizeButton;
+
+type Props = {
+  settings: VisualSettings;
+  onChange: (s: VisualSettings) => void;
+};
+
+type SliderDef = {
+  key: keyof ParticleParams;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+};
+
+type BgSliderDef = {
+  key: keyof BackgroundParams;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+};
+
+const PARTICLE_SLIDERS: SliderDef[] = [
+  { key: 'density', label: 'Density', min: 0.1, max: 2.2, step: 0.05 },
+  { key: 'size', label: 'Size', min: 0.3, max: 2.2, step: 0.05 },
+  { key: 'sizeVariance', label: 'Size variance', min: 0, max: 1, step: 0.05 },
+  { key: 'speed', label: 'Speed', min: 0.2, max: 2.2, step: 0.05 },
+  { key: 'spread', label: 'Spread', min: 0, max: 1, step: 0.05 },
+  { key: 'gravity', label: 'Gravity', min: -1.2, max: 1.8, step: 0.05 },
+  { key: 'drag', label: 'Drag', min: 0, max: 1, step: 0.05 },
+  { key: 'lifetime', label: 'Lifetime', min: 0.25, max: 2.2, step: 0.05 },
+  { key: 'turbulence', label: 'Turbulence', min: 0, max: 1.2, step: 0.05 },
+  { key: 'sparkle', label: 'Sparkle', min: 0, max: 1, step: 0.05 },
+  { key: 'bloom', label: 'Bloom', min: 0.4, max: 2.2, step: 0.05 },
+  { key: 'secondaryBurst', label: 'Burst ring', min: 0, max: 1.2, step: 0.05 },
+  { key: 'trail', label: 'Trails', min: 0, max: 1, step: 0.05 },
+  { key: 'whiteHot', label: 'White-hot core', min: 0, max: 1, step: 0.05 },
+  { key: 'swirl', label: 'Swirl', min: 0, max: 1.2, step: 0.05 },
+  { key: 'sustainEmit', label: 'Sustain glow', min: 0, max: 1.2, step: 0.05 },
+  { key: 'hitFlash', label: 'Hit flash', min: 0, max: 1.2, step: 0.05 },
+];
+
+const BG_SLIDERS: BgSliderDef[] = [
+  { key: 'intensity', label: 'Intensity', min: 0, max: 1.2, step: 0.05 },
+  { key: 'reactive', label: 'Music reactive', min: 0, max: 1.2, step: 0.05 },
+  { key: 'parallax', label: 'Motion', min: 0, max: 1.2, step: 0.05 },
+  { key: 'stars', label: 'Stars', min: 0, max: 1, step: 0.05 },
+  { key: 'orbs', label: 'Color orbs', min: 0, max: 1, step: 0.05 },
+  { key: 'waves', label: 'Aurora waves', min: 0, max: 1, step: 0.05 },
+  { key: 'beams', label: 'Light beams', min: 0, max: 1, step: 0.05 },
+];
+
+type MusicSliderDef = {
+  key: keyof MusicReactiveParams;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+};
+
+const MUSIC_SLIDERS: MusicSliderDef[] = [
+  { key: 'intensity', label: 'Intensity', min: 0, max: 1.4, step: 0.05 },
+  { key: 'ambient', label: 'Ambient dust', min: 0, max: 1.4, step: 0.05 },
+  { key: 'columns', label: 'Rising streams', min: 0, max: 1.4, step: 0.05 },
+  { key: 'waves', label: 'Shockwaves', min: 0, max: 1.4, step: 0.05 },
+  { key: 'bassPulse', label: 'Bass pulse', min: 0, max: 1.4, step: 0.05 },
+  { key: 'attack', label: 'Attack snap', min: 0.1, max: 1.2, step: 0.05 },
+];
+
+export function SettingsPanel({ settings, onChange }: Props) {
+  const set = <K extends keyof VisualSettings>(key: K, value: VisualSettings[K]) => {
+    onChange({ ...settings, [key]: value });
+  };
+
+  const setParticle = <K extends keyof ParticleParams>(key: K, value: ParticleParams[K]) => {
+    onChange({
+      ...settings,
+      particlePresetId: 'custom',
+      particles: { ...settings.particles, [key]: value },
+    });
+  };
+
+  const setBg = <K extends keyof BackgroundParams>(key: K, value: BackgroundParams[K]) => {
+    onChange({
+      ...settings,
+      background: { ...settings.background, [key]: value, enabled: true },
+    });
+  };
+
+  const setMusic = <K extends keyof MusicReactiveParams>(key: K, value: MusicReactiveParams[K]) => {
+    onChange({
+      ...settings,
+      musicReactivePresetId: 'custom',
+      musicReactive: { ...settings.musicReactive, [key]: value },
+    });
+  };
+
+  const applyMusicPreset = (id: string) => {
+    const preset = MUSIC_REACTIVE_PRESETS.find((p) => p.id === id);
+    if (!preset) return;
+    onChange({
+      ...settings,
+      musicReactivePresetId: id,
+      musicReactive: { ...preset.params },
+    });
+  };
+
+  const applyParticlePreset = (id: string) => {
+    const preset = PARTICLE_PRESETS.find((p) => p.id === id);
+    if (!preset) return;
+    onChange({
+      ...settings,
+      particlePresetId: id,
+      particles: { ...preset.params },
+      particlesEnabled: true,
+    });
+  };
+
+  const applyBgPreset = (id: string) => {
+    const preset = BACKGROUND_PRESETS.find((p) => p.id === id);
+    if (!preset) return;
+    onChange({
+      ...settings,
+      background: { ...preset.params },
+    });
+  };
+
+  const p = settings.particles;
+  const bg = settings.background;
+  const particlesOff = !settings.particlesEnabled;
+  const bgOff = !bg.enabled;
+  const activeBgId: string = !bg.enabled ? 'off' : bg.style;
+
+  return (
+    <>
+      <section className="panel">
+        <PanelHeader
+          title="Visuals"
+          onRandomize={() => onChange({ ...settings, ...randomizeVisuals() })}
+        />
+
+        <label className="field compact">
+          <span className="field-label">
+            Scroll speed
+            <em>{Math.round(settings.pixelsPerSecond)}</em>
+          </span>
+          <input
+            type="range"
+            min={120}
+            max={520}
+            value={settings.pixelsPerSecond}
+            onChange={(e) => set('pixelsPerSecond', Number(e.target.value))}
+          />
+        </label>
+
+        <label className="field compact">
+          <span className="field-label">
+            Glow
+            <em>{settings.glowStrength.toFixed(2)}</em>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={settings.glowStrength}
+            onChange={(e) => set('glowStrength', Number(e.target.value))}
+          />
+        </label>
+
+        <label className="field compact">
+          <span className="field-label">
+            Note opacity
+            <em>{settings.noteOpacity.toFixed(2)}</em>
+          </span>
+          <input
+            type="range"
+            min={0.3}
+            max={1}
+            step={0.05}
+            value={settings.noteOpacity}
+            onChange={(e) => set('noteOpacity', Number(e.target.value))}
+          />
+        </label>
+
+        <label className="field check">
+          <input
+            type="checkbox"
+            checked={settings.showKeyboard}
+            onChange={(e) => set('showKeyboard', e.target.checked)}
+          />
+          <span>Show keyboard</span>
+        </label>
+
+        <label className="field check">
+          <input
+            type="checkbox"
+            checked={settings.showHitRail}
+            onChange={(e) => set('showHitRail', e.target.checked)}
+          />
+          <span>Impact rail</span>
+        </label>
+
+        <label className="field compact">
+          <span className="field-label">
+            Rail intensity
+            <em>{settings.hitRailIntensity.toFixed(2)}</em>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1.2}
+            step={0.05}
+            value={settings.hitRailIntensity}
+            disabled={!settings.showHitRail}
+            onChange={(e) => set('hitRailIntensity', Number(e.target.value))}
+          />
+        </label>
+
+        <label className="field row">
+          <span>Base color</span>
+          <input
+            type="color"
+            value={settings.backgroundColor}
+            onChange={(e) => set('backgroundColor', e.target.value)}
+          />
+        </label>
+      </section>
+
+      <section className="panel">
+        <PanelHeader
+          title="Music reactive"
+          onRandomize={() =>
+            onChange({
+              ...settings,
+              musicReactivePresetId: 'custom',
+              musicReactive: randomizeMusicReactive(),
+            })
+          }
+        />
+        <p className="muted small">
+          Particle animation that breathes with the notes — dust, rising streams, shockwaves.
+        </p>
+
+        <div className="preset-grid" style={{ marginTop: '0.5rem' }}>
+          {MUSIC_REACTIVE_PRESETS.map((pr) => (
+            <button
+              key={pr.id}
+              type="button"
+              className={`preset-chip ${settings.musicReactivePresetId === pr.id ? 'active' : ''}`}
+              title={pr.blurb}
+              onClick={() => applyMusicPreset(pr.id)}
+            >
+              <span className="preset-name">{pr.name}</span>
+              <span className="preset-blurb">{pr.blurb}</span>
+            </button>
+          ))}
+          {settings.musicReactivePresetId === 'custom' && (
+            <div className="preset-chip active custom-tag">
+              <span className="preset-name">Custom</span>
+              <span className="preset-blurb">Manual / random mix</span>
+            </div>
+          )}
+        </div>
+
+        <label className="field check" style={{ marginTop: '0.65rem' }}>
+          <input
+            type="checkbox"
+            checked={settings.musicReactive.enabled}
+            onChange={(e) => setMusic('enabled', e.target.checked)}
+          />
+          <span>Enabled</span>
+        </label>
+        <div className={`param-stack ${settings.musicReactive.enabled ? '' : 'is-disabled'}`}>
+          {MUSIC_SLIDERS.map((sl) => (
+            <label key={sl.key} className="field compact">
+              <span className="field-label">
+                {sl.label}
+                <em>{Number(settings.musicReactive[sl.key]).toFixed(2)}</em>
+              </span>
+              <input
+                type="range"
+                min={sl.min}
+                max={sl.max}
+                step={sl.step}
+                value={Number(settings.musicReactive[sl.key])}
+                disabled={!settings.musicReactive.enabled}
+                onChange={(e) => setMusic(sl.key, Number(e.target.value) as never)}
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel">
+        <PanelHeader
+          title="Background"
+          onRandomize={() =>
+            onChange({
+              ...settings,
+              background: randomizeBackground(),
+            })
+          }
+        />
+        <p className="muted small">Atmosphere behind the notes — reacts to what you play.</p>
+
+        <div className="preset-grid">
+          {BACKGROUND_PRESETS.map((pr) => (
+            <button
+              key={pr.id}
+              type="button"
+              className={`preset-chip ${activeBgId === pr.id ? 'active' : ''}`}
+              title={pr.blurb}
+              onClick={() => applyBgPreset(pr.id)}
+            >
+              <span className="preset-name">{pr.name}</span>
+              <span className="preset-blurb">{pr.blurb}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className={`param-stack ${bgOff ? 'is-disabled' : ''}`} style={{ marginTop: '0.75rem' }}>
+          {BG_SLIDERS.map((sl) => (
+            <label key={sl.key} className="field compact">
+              <span className="field-label">
+                {sl.label}
+                <em>{Number(bg[sl.key]).toFixed(2)}</em>
+              </span>
+              <input
+                type="range"
+                min={sl.min}
+                max={sl.max}
+                step={sl.step}
+                value={Number(bg[sl.key])}
+                disabled={bgOff}
+                onChange={(e) => setBg(sl.key, Number(e.target.value) as never)}
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel">
+        <PanelHeader
+          title="Particles"
+          onRandomize={() =>
+            onChange({
+              ...settings,
+              particlesEnabled: true,
+              particlePresetId: 'custom',
+              particles: randomizeParticles(),
+            })
+          }
+        />
+
+        <label className="field check">
+          <input
+            type="checkbox"
+            checked={settings.particlesEnabled}
+            onChange={(e) => set('particlesEnabled', e.target.checked)}
+          />
+          <span>Enabled</span>
+        </label>
+
+        <p className="muted small">Presets</p>
+        <div className="preset-grid">
+          {PARTICLE_PRESETS.filter((pr) => pr.id !== 'custom').map((pr) => (
+            <button
+              key={pr.id}
+              type="button"
+              className={`preset-chip ${settings.particlePresetId === pr.id ? 'active' : ''}`}
+              title={pr.blurb}
+              disabled={particlesOff}
+              onClick={() => applyParticlePreset(pr.id)}
+            >
+              <span className="preset-name">{pr.name}</span>
+              <span className="preset-blurb">{pr.blurb}</span>
+            </button>
+          ))}
+          {settings.particlePresetId === 'custom' && (
+            <div className="preset-chip active custom-tag">
+              <span className="preset-name">Custom</span>
+              <span className="preset-blurb">Manual / random mix</span>
+            </div>
+          )}
+        </div>
+
+        <p className="muted small" style={{ marginTop: '0.75rem' }}>
+          Parameters
+        </p>
+        <div className={`param-stack ${particlesOff ? 'is-disabled' : ''}`}>
+          {PARTICLE_SLIDERS.map((sl) => (
+            <label key={sl.key} className="field compact">
+              <span className="field-label">
+                {sl.label}
+                <em>{Number(p[sl.key]).toFixed(2)}</em>
+              </span>
+              <input
+                type="range"
+                min={sl.min}
+                max={sl.max}
+                step={sl.step}
+                value={p[sl.key]}
+                disabled={particlesOff}
+                onChange={(e) => setParticle(sl.key, Number(e.target.value))}
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
