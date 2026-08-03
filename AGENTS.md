@@ -4,16 +4,16 @@ You are working on **Lumenote**, a browser MIDI piano visualizer.
 
 ## Before coding
 
-1. Read **`docs/SESSION_NOTES.md`** (handoff + decisions).  
+1. If present, read **`docs/SESSION_NOTES.md`** (local handoff only - not on GitHub).  
 2. Skim **`docs/ARCHITECTURE.md`** if touching engine/render.  
-3. Project root: `C:\Users\Matt\projects\midi-visualizer` (local folder; product name is Lumenote)  
+3. Project root: the clone of this repo (folder name may vary).  
 4. Remote: `https://github.com/UnSlopd/lumenote`
 
 ## Hard rules
 
 - Do **not** break playback reanchor / mute-only reschedule (color changes must not desync audio).  
 - Do **not** start Web Audio / Tone until a user gesture.  
-- Do **not** commit secrets, `.env`, or large private soundfonts.  
+- Do **not** commit secrets, `.env`, large private soundfonts, or `docs/SESSION_NOTES.md`.  
 - Confirm before force-push, deploy, or destructive git.  
 - Prefer small, focused diffs; match existing style.
 
@@ -27,7 +27,6 @@ npm run build
 
 ```
 Continue Lumenote (multi-track MIDI visualizer).
-Path: C:\Users\Matt\projects\midi-visualizer
-GitHub: https://github.com/UnSlopd/lumenote
-Read docs/SESSION_NOTES.md and docs/ARCHITECTURE.md first.
+Clone: https://github.com/UnSlopd/lumenote
+Read docs/ARCHITECTURE.md (and docs/SESSION_NOTES.md if it exists locally).
 ```

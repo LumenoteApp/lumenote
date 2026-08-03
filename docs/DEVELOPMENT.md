@@ -3,7 +3,8 @@
 ## Setup
 
 ```bash
-cd C:\Users\Matt\projects\midi-visualizer
+git clone https://github.com/UnSlopd/lumenote.git
+cd lumenote
 npm install
 npm run dev
 ```

@@ -106,16 +106,15 @@ npm run preview
 
 ---
 
-## 📚 Docs (for humans & AI sessions)
+## Docs
 
 | Doc | Purpose |
 |-----|---------|
-| [docs/SESSION_NOTES.md](docs/SESSION_NOTES.md) | **Handoff** - start a new session here |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Setup & conventions |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Setup and conventions |
 | [AGENTS.md](AGENTS.md) | Short rules for coding agents |
 
-## 🗂️ Project layout
+## Project layout
 
 ```text
 src/
@@ -124,7 +123,8 @@ src/
   render/          # Canvas: notes, particles, bg, reactive field
   theme/           # Presets (particles, scenes, colors, party)
   ui/              # Landing, panels, transport
-docs/              # Architecture + session handoff notes
+  export/          # Video bake + realtime capture
+docs/              # Architecture + development notes
 public/
   spessasynth_processor.min.js   # SF2 AudioWorklet
 ```

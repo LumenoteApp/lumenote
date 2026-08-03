@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local agent handoff (not published to GitHub)
+docs/SESSION_NOTES.md
