@@ -9,6 +9,10 @@
 <h1 align="center">Lumenote</h1>
 
 <p align="center">
+  <a href="https://www.youtube.com/watch?v=BjfoS6BrbYg">Watch the demo on YouTube</a>
+</p>
+
+<p align="center">
   <strong>Multi-track MIDI piano visualizer in the browser.</strong><br />
   Falling notes · particles · music-reactive atmosphere · scene presets · SF2 soundfonts.<br />
   No watermark. No account. No install.
@@ -26,18 +30,6 @@
   <img src="https://img.shields.io/github/last-commit/UnSlopd/lumenote?style=flat-square&color=CE93D8" alt="Last commit" />
   <img src="https://img.shields.io/github/languages/top/UnSlopd/lumenote?style=flat-square&color=80CBC4" alt="Top language" />
   <img src="https://img.shields.io/badge/platform-browser-A5D6A7?style=flat-square" alt="Browser" />
-</p>
-
----
-
-## Demo
-
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=BjfoS6BrbYg">
-    <img src="https://img.youtube.com/vi/BjfoS6BrbYg/maxresdefault.jpg" alt="Watch the Lumenote demo on YouTube" width="100%" />
-  </a>
-  <br />
-  <a href="https://www.youtube.com/watch?v=BjfoS6BrbYg">Watch the demo on YouTube</a>
 </p>
 
 ---
