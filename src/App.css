@@ -161,6 +161,97 @@
   line-height: 1.35;
 }
 
+/* ── Live MIDI panel ── */
+.midi-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.midi-activity {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: none;
+  transition: background 0.08s ease, box-shadow 0.08s ease;
+}
+
+.midi-activity.on {
+  background: #69f0ae;
+  box-shadow: 0 0 10px rgba(105, 240, 174, 0.75);
+}
+
+.midi-enable-btn {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.midi-row {
+  margin-top: 0.45rem;
+}
+
+.midi-field {
+  width: 100%;
+}
+
+.midi-select {
+  width: 100%;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.25);
+  color: #e8eaef;
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.82rem;
+  font-family: inherit;
+  margin-top: 0.25rem;
+}
+
+.midi-select:focus {
+  outline: none;
+  border-color: rgba(79, 195, 247, 0.45);
+}
+
+.midi-select option {
+  background: #1a1c24;
+  color: #e8eaef;
+}
+
+.midi-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+  color: rgba(232, 234, 239, 0.85);
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.midi-check input {
+  margin-top: 0.15rem;
+  accent-color: #4fc3f7;
+}
+
+.midi-check input:disabled + span {
+  opacity: 0.45;
+}
+
+.midi-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.midi-actions .btn {
+  flex: 1;
+}
+
+.midi-hint {
+  margin: 0.4rem 0 0 !important;
+}
+
 /* ── Scene presets ── */
 .scene-save-row {
   display: flex;

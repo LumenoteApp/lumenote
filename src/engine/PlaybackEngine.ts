@@ -4,6 +4,18 @@ import type { InstrumentId } from './instruments';
 
 export type PlaybackState = 'stopped' | 'playing' | 'paused';
 
+/** Live MIDI note for keyboard state + rising note bars. */
+export type LiveNoteState = {
+  id: string;
+  pitch: number;
+  velocity: number;
+  channel: number;
+  /** performance.now() when pressed (wall clock — animates without song play) */
+  wallStart: number;
+  /** performance.now() when released; null while still held */
+  wallEnd: number | null;
+};
+
 type Listener = () => void;
 
 /** True only when mute/visibility change (not color/name). */
@@ -29,10 +41,19 @@ export class PlaybackEngine {
   private hitCursor = 0;
   private lastTime = 0;
   private playWallStart = 0;
+  /** Currently held live notes (pitch → state) for keyboard lighting. */
+  private liveHeld = new Map<number, LiveNoteState>();
+  /**
+   * Held + recently released live notes for rising bars.
+   * Released notes stay until pruned (scrolled off / aged out).
+   */
+  private liveVisual: LiveNoteState[] = [];
 
   subscribe(fn: Listener) {
     this.listeners.add(fn);
-    return () => this.listeners.delete(fn);
+    return () => {
+      this.listeners.delete(fn);
+    };
   }
 
   private emit() {
@@ -41,6 +62,98 @@ export class PlaybackEngine {
 
   setOnNoteHit(cb: ((note: NoteEvent) => void) | null) {
     this.onNoteHit = cb;
+  }
+
+  /** Currently held live notes (keyboard / sustain particles). */
+  getLiveNotes(): ReadonlyMap<number, LiveNoteState> {
+    return this.liveHeld;
+  }
+
+  /**
+   * Live note bars (held grow up from hit line; released scroll upward).
+   * Prunes notes older than ~12s after release.
+   */
+  getLiveVisualNotes(): readonly LiveNoteState[] {
+    const now = performance.now();
+    const maxReleaseAgeMs = 12_000;
+    if (this.liveVisual.length > 0) {
+      this.liveVisual = this.liveVisual.filter((n) => {
+        if (n.wallEnd === null) return true;
+        return now - n.wallEnd < maxReleaseAgeMs;
+      });
+    }
+    return this.liveVisual;
+  }
+
+  private clearLiveVisual() {
+    this.liveHeld.clear();
+    this.liveVisual = [];
+  }
+
+  /**
+   * Live MIDI note-on: init audio if needed, sound, track for visuals, fire hit FX.
+   * Does not touch the transport schedule (safe mid-playback).
+   */
+  async liveNoteOn(pitch: number, velocity: number, channel = 0) {
+    const p = Math.min(127, Math.max(0, pitch | 0));
+    const vel = Math.max(0.01, Math.min(1, velocity));
+    const ch = Math.min(15, Math.max(0, channel));
+
+    if (!this.audio.isReady()) {
+      try {
+        await this.audio.init();
+      } catch {
+        return;
+      }
+    }
+
+    this.audio.noteOn(p, vel, ch);
+    const now = performance.now();
+
+    // Re-trigger same pitch: seal previous bar so it can float up
+    const prev = this.liveHeld.get(p);
+    if (prev && prev.wallEnd === null) {
+      prev.wallEnd = now;
+    }
+
+    const note: LiveNoteState = {
+      id: `live-${p}-${now}`,
+      pitch: p,
+      velocity: vel,
+      channel: ch,
+      wallStart: now,
+      wallEnd: null,
+    };
+    this.liveHeld.set(p, note);
+    this.liveVisual.push(note);
+
+    if (this.onNoteHit) {
+      this.onNoteHit({
+        id: note.id,
+        pitch: p,
+        start: this.getTime(),
+        duration: 0.05,
+        velocity: vel,
+        trackIndex: this.tracks[0]?.index ?? 0,
+        channel: ch,
+      });
+    }
+  }
+
+  liveNoteOff(pitch: number, _channel = 0) {
+    const p = Math.min(127, Math.max(0, pitch | 0));
+    this.audio.noteOff(p, _channel);
+    const held = this.liveHeld.get(p);
+    if (held && held.wallEnd === null) {
+      held.wallEnd = performance.now();
+    }
+    this.liveHeld.delete(p);
+  }
+
+  /** Clear live held notes + rising bars (UI disconnect / panic). */
+  releaseLiveNotes() {
+    this.audio.releaseLiveNotes();
+    this.clearLiveVisual();
   }
 
   setSong(song: Song | null) {
@@ -103,6 +216,7 @@ export class PlaybackEngine {
       this.audio.transportPauseStop();
       this.audio.clearSchedule();
     }
+    this.clearLiveVisual();
     await this.audio.init();
     await this.audio.setInstrument(id);
     if (wasPlaying) {
@@ -119,6 +233,7 @@ export class PlaybackEngine {
       this.audio.transportPauseStop();
       this.audio.clearSchedule();
     }
+    this.clearLiveVisual();
     await this.audio.init();
     await this.audio.loadSf2(buffer, name);
     await this.audio.setInstrument('sf2');
@@ -154,6 +269,8 @@ export class PlaybackEngine {
     this.pauseOffset = this.getTime();
     this.audio.transportPauseStop();
     this.audio.clearSchedule();
+    // clearSchedule releases synths — drop live visual state to match
+    this.clearLiveVisual();
     this.state = 'paused';
     this.emit();
   }
@@ -161,6 +278,7 @@ export class PlaybackEngine {
   stop() {
     this.audio.transportStop();
     this.audio.clearSchedule();
+    this.clearLiveVisual();
     this.pauseOffset = 0;
     this.hitCursor = 0;
     this.lastTime = 0;
@@ -176,6 +294,7 @@ export class PlaybackEngine {
     if (wasPlaying) {
       this.audio.transportPauseStop();
       this.audio.clearSchedule();
+      this.clearLiveVisual();
     }
 
     this.pauseOffset = t;
@@ -202,6 +321,8 @@ export class PlaybackEngine {
     this.syncHitCursor(songTime);
     this.lastTime = songTime;
     this.playWallStart = performance.now();
+    // scheduleNotes → clearSchedule kills live synth voices
+    this.clearLiveVisual();
     this.audio.scheduleNotes(this.song.notes, this.tracks, songTime);
     if (this.audio.isReady()) {
       this.audio.transportStart(); // transport.seconds = 0, then start

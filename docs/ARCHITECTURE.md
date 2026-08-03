@@ -33,6 +33,22 @@
 
 Instrument change mid-play: pause transport → switch → `reanchorPlayback`.
 
+Live notes: `noteOn` / `noteOff` (immediate) — never schedule on transport; safe while a song plays.
+
+## Live MIDI (`MidiIO`)
+
+```
+Hardware keyboard ──► midiIO (Web MIDI) ──► playbackEngine.liveNoteOn/Off
+                                              ├─ AudioEngine.noteOn (local synth)
+                                              └─ onNoteHit → particles / hit rail
+
+Song schedule ──► transport callbacks ──► synth + midiIO.schedulePlaybackNote (optional out)
+Input thru    ──► midiIO ──► selected MIDIOutput
+```
+
+- Enable from **Live MIDI** sidebar (user gesture → `requestMIDIAccess` + warm audio).
+- Visualizer merges `getLiveNotes()` into active keyboard keys each frame.
+
 ## Rendering (`VisualizerCanvas`)
 
 Single rAF loop (effect with empty deps; reads refs):

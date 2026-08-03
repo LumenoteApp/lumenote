@@ -26,10 +26,12 @@ import { SettingsPanel } from './ui/SettingsPanel';
 import { RandomizerDock } from './ui/RandomizerDock';
 import { HomePage } from './ui/HomePage';
 import { SoundPanel } from './ui/SoundPanel';
+import { MidiPanel } from './ui/MidiPanel';
 import { ScenePresetPanel } from './ui/ScenePresetPanel';
 import type { InstrumentId } from './engine/instruments';
 import type { ScenePreset } from './theme/scenePresets';
 import { hydrateSceneData } from './theme/scenePresets';
+import { midiIO } from './engine/MidiIO';
 import './App.css';
 
 function formatTime(sec: number) {
@@ -116,6 +118,17 @@ export default function App() {
     return () => {
       unsub();
     };
+  }, []);
+
+  // Live MIDI in → sound + visuals (input filter / thru handled in MidiIO)
+  useEffect(() => {
+    return midiIO.onNote((msg) => {
+      if (msg.type === 'noteon') {
+        void playbackEngine.liveNoteOn(msg.pitch, msg.velocity, msg.channel);
+      } else {
+        playbackEngine.liveNoteOff(msg.pitch, msg.channel);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -650,6 +663,8 @@ export default function App() {
               onSf2Loaded={setSf2Name}
             />
 
+            <MidiPanel />
+
             <TrackPanel
               tracks={tracks}
               colors={settings.colors}
@@ -680,6 +695,7 @@ export default function App() {
                 <li>
                   <kbd>←</kbd> <kbd>→</kbd> seek 2s
                 </li>
+                <li>Live MIDI panel: keyboard in + hardware out</li>
               </ul>
             </section>
           </aside>

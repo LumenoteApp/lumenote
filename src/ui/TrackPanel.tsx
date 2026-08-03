@@ -25,7 +25,13 @@ export function TrackPanel({ tracks, colors: colorsProp, onTracksChange, onColor
   const colors = normalizeColorSettings(colorsProp);
 
   const applyPalette = (paletteId: string) => {
-    onColorsChange({ ...colors, paletteId });
+    // Single-track (or no track) + Per track only shows one solid color —
+    // auto-switch to Palette scatter so all swatches appear on notes.
+    const next =
+      colors.mode === 'track' && tracks.length <= 1
+        ? { ...colors, paletteId, mode: 'palette' as const, trackBlend: 0 }
+        : { ...colors, paletteId };
+    onColorsChange(next);
     if (tracks.length > 0) {
       onTracksChange(applyPaletteToTracks(tracks, paletteId));
     }
@@ -58,7 +64,10 @@ export function TrackPanel({ tracks, colors: colorsProp, onTracksChange, onColor
       <p className="muted small">Note color mode</p>
       <div className="preset-grid">
         {COLOR_MODE_PRESETS.map((m) => {
-          const swatches = modePreviewColors(m.id, performance.now() / 1000);
+          const swatches =
+            m.id === 'palette' || m.id === 'palette_wave'
+              ? getPalette(colors.paletteId).slice(0, 5)
+              : modePreviewColors(m.id, performance.now() / 1000);
           return (
             <button
               key={m.id}
@@ -141,7 +150,14 @@ export function TrackPanel({ tracks, colors: colorsProp, onTracksChange, onColor
       )}
 
       <p className="muted small" style={{ marginTop: '0.85rem' }}>
-        Track palettes
+        Palettes
+      </p>
+      <p className="muted small" style={{ marginTop: '0.15rem', opacity: 0.85 }}>
+        {colors.mode === 'track'
+          ? 'Per track mode: one solid color per track (first swatch if only one track).'
+          : colors.mode === 'palette' || colors.mode === 'palette_wave'
+            ? 'Active — these colors are scattered across notes.'
+            : 'Used as track base / blend color. Pick Palette mode to scatter all swatches.'}
       </p>
       <div className="preset-grid">
         {TRACK_PALETTE_PRESETS.map((p) => (
@@ -184,9 +200,16 @@ export function TrackPanel({ tracks, colors: colorsProp, onTracksChange, onColor
 
       {tracks.length === 0 ? (
         <p className="muted" style={{ marginTop: '0.75rem' }}>
-          Load a multi-track MIDI to assign colors per hand/track.
+          Load a MIDI for per-track colors, or use Palette mode with live MIDI.
         </p>
-      ) : (
+      ) : tracks.length === 1 && colors.mode === 'track' ? (
+        <p className="muted small" style={{ marginTop: '0.75rem' }}>
+          This file has one track, so Per track shows a single color. Switch to{' '}
+          <strong>Palette</strong> to use every swatch across notes.
+        </p>
+      ) : null}
+
+      {tracks.length > 0 && (
         <>
           <p className="muted small" style={{ marginTop: '0.85rem' }}>
             Tracks

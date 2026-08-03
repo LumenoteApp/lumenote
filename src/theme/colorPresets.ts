@@ -2,6 +2,8 @@
 
 export type ColorMode =
   | 'track'
+  | 'palette'
+  | 'palette_wave'
   | 'rainbow_time'
   | 'rainbow_pitch'
   | 'rainbow_wave'
@@ -109,7 +111,21 @@ export const TRACK_PALETTE_PRESETS: TrackPalettePreset[] = [
 ];
 
 export const COLOR_MODE_PRESETS: ColorModePreset[] = [
-  { id: 'track', name: 'Per track', blurb: 'Static track colors' },
+  {
+    id: 'palette',
+    name: 'Palette',
+    blurb: 'Scatter all palette colors by pitch',
+  },
+  {
+    id: 'palette_wave',
+    name: 'Palette wave',
+    blurb: 'Palette colors scroll over time',
+  },
+  {
+    id: 'track',
+    name: 'Per track',
+    blurb: 'One solid color per track',
+  },
   { id: 'rainbow_time', name: 'RGB cycle', blurb: 'Full spectrum over time' },
   { id: 'rainbow_pitch', name: 'By pitch', blurb: 'Low→high rainbow' },
   { id: 'rainbow_wave', name: 'Wave', blurb: 'Scrolling RGB wave' },
@@ -118,12 +134,13 @@ export const COLOR_MODE_PRESETS: ColorModePreset[] = [
 ];
 
 export const DEFAULT_COLOR_SETTINGS: ColorSettings = {
-  mode: 'track',
+  // Scatter palette colors across notes (not one solid per track)
+  mode: 'palette',
   paletteId: 'classic',
   cycleSpeed: 0.35,
   saturation: 0.9,
   brightness: 1,
-  trackBlend: 0.15,
+  trackBlend: 0,
 };
 
 /** Merge partial / HMR-stale color settings with defaults */
@@ -210,6 +227,34 @@ function mixHex(a: string, b: string, t: number): string {
 }
 
 /**
+ * Sample a palette with continuous index (wraps + lerps between neighbors).
+ * t = 0 → colors[0], t = 1 → colors[1], …
+ */
+export function samplePalette(colors: string[], t: number): string {
+  if (colors.length === 0) return '#ffffff';
+  if (colors.length === 1) return colors[0];
+  const n = colors.length;
+  let x = t % n;
+  if (x < 0) x += n;
+  const i0 = Math.floor(x) % n;
+  const i1 = (i0 + 1) % n;
+  const frac = x - Math.floor(x);
+  return mixHex(colors[i0], colors[i1], frac);
+}
+
+/** Soft sat/brightness adjust on a hex (for palette modes). */
+function adjustHex(hex: string, saturation: number, brightness: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  const s = Math.max(0, Math.min(1, saturation));
+  const v = Math.max(0.2, Math.min(1.2, brightness));
+  const grey = 0.299 * r + 0.587 * g + 0.114 * b;
+  const rs = (grey + (r - grey) * s) * v;
+  const gs = (grey + (g - grey) * s) * v;
+  const bs = (grey + (b - grey) * s) * v;
+  return rgbToHex(rs, gs, bs);
+}
+
+/**
  * Resolve the display color for a note given mode + time.
  */
 export function resolveNoteColor(opts: {
@@ -224,12 +269,34 @@ export function resolveNoteColor(opts: {
   const v = Math.max(0.2, Math.min(1.2, settings.brightness));
   const speed = settings.cycleSpeed;
   const blend = Math.max(0, Math.min(1, settings.trackBlend));
+  const palette = getPalette(settings.paletteId);
 
   let dynamic = trackColor;
 
   switch (settings.mode) {
     case 'track':
+      // Solid per-track color only (palette assigns one swatch per track)
       return trackColor;
+
+    case 'palette': {
+      // Scatter every palette color across the keyboard by pitch
+      // Optional slow drift via cycleSpeed so it still feels alive
+      const span = Math.max(1, palette.length - 0.001);
+      const pitchT = ((pitch - 21) / (108 - 21)) * span;
+      const drift = time * speed * 0.35;
+      dynamic = adjustHex(samplePalette(palette, pitchT + drift), s, v);
+      break;
+    }
+
+    case 'palette_wave': {
+      // Palette colors scroll with time + pitch (like RGB wave but locked to swatches)
+      dynamic = adjustHex(
+        samplePalette(palette, pitch * 0.12 + time * speed * 2.4 + noteStart * 0.55),
+        s,
+        v,
+      );
+      break;
+    }
 
     case 'rainbow_time': {
       // Full RGB loop — continuous hue spin
@@ -285,6 +352,9 @@ export function resolveNoteColor(opts: {
 /** Palette swatch colors for UI preview of dynamic modes */
 export function modePreviewColors(mode: ColorMode, time = 0): string[] {
   if (mode === 'track') return getPalette('classic').slice(0, 4);
+  if (mode === 'palette' || mode === 'palette_wave') {
+    return getPalette('neon').slice(0, 5);
+  }
   const settings: ColorSettings = {
     ...DEFAULT_COLOR_SETTINGS,
     mode,

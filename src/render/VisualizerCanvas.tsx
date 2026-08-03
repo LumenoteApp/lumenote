@@ -77,7 +77,9 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
       const s = settingsRef.current;
       if (!canvas) return;
       const track = tracksRef.current.find((t) => t.index === note.trackIndex);
-      if (!track || !track.visible) return;
+      // Live MIDI may fire with no song loaded — still show hits
+      if (track && !track.visible) return;
+      const trackColor = track?.color ?? '#4FC3F7';
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
@@ -85,7 +87,7 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
       const hitY = h - keyboardH - HIT_LINE_PAD;
       const x = pitchToX(note.pitch, w);
       const color = resolveNoteColor({
-        trackColor: track.color,
+        trackColor,
         pitch: note.pitch,
         time: playbackEngine.getTime(),
         noteStart: note.start,
@@ -197,6 +199,20 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
         }
       }
 
+      // Live MIDI / keyboard held notes (merge over song keys)
+      const liveHeld = playbackEngine.getLiveNotes();
+      const liveVisual = playbackEngine.getLiveVisualNotes();
+      const liveTrackIdx = currentTracks[0]?.index ?? 0;
+      if (liveHeld.size > 0) {
+        for (const [pitch, live] of liveHeld) {
+          const color = noteColor(liveTrackIdx, pitch, live.wallStart / 1000);
+          const prev = activeKeys.get(pitch);
+          if (!prev || live.velocity > prev.velocity) {
+            activeKeys.set(pitch, { color, velocity: live.velocity });
+          }
+        }
+      }
+
       const activeList = [...activeKeys.entries()].map(([pitch, info]) => ({
         pitch,
         x: pitchToX(pitch, w),
@@ -237,63 +253,99 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
       musicFieldRef.current.update(dt, bands, activeList, onset, s.musicReactive, colors);
       musicFieldRef.current.draw(ctx, s.musicReactive);
 
-      // Notes
+      // Song notes (fall toward hit line) + live notes (grow / scroll upward)
+      const pulse = musicFieldRef.current.getPulse();
+      const bass = musicFieldRef.current.getBassKick();
+      const wallNow = performance.now();
+
+      const drawNoteBar = (
+        pitch: number,
+        velocity: number,
+        color: string,
+        yTop: number,
+        yBottom: number,
+        isActive: boolean,
+      ) => {
+        const noteH = yBottom - yTop;
+        if (noteH < 1) return;
+        if (yTop > hitY + 20 || yBottom < -20) return;
+
+        const keyW = isBlackKey(pitch)
+          ? whiteKeyWidth(w) * 0.55
+          : whiteKeyWidth(w) * 0.88;
+        const xCenter = pitchToX(pitch, w);
+        const reactiveBoost = s.musicReactive.enabled
+          ? 1 + pulse * 0.12 + (isActive ? bass * 0.08 : 0)
+          : 1;
+        const alpha = s.noteOpacity * (0.55 + velocity * 0.45);
+
+        if (s.glowStrength > 0.05) {
+          ctx.shadowColor = hexAlpha(
+            color,
+            0.55 * s.glowStrength * (isActive ? 1 + pulse * 0.4 : 1),
+          );
+          ctx.shadowBlur =
+            18 * s.glowStrength * (isActive ? 1.4 + pulse * 0.6 : 1) * reactiveBoost;
+        } else {
+          ctx.shadowBlur = 0;
+        }
+
+        const drawW = keyW * (isActive ? reactiveBoost : 1);
+        const drawX = xCenter - drawW / 2;
+        const grad = ctx.createLinearGradient(drawX, yTop, drawX, yBottom);
+        grad.addColorStop(0, hexAlpha(color, alpha * 0.75));
+        grad.addColorStop(0.5, hexAlpha(color, alpha));
+        grad.addColorStop(1, hexAlpha(color, alpha * 0.9));
+        ctx.fillStyle = grad;
+        roundedRect(ctx, drawX, yTop, drawW, noteH, 5);
+        ctx.fill();
+
+        if (isActive) {
+          ctx.shadowBlur = 24 * s.glowStrength * (1 + pulse * 0.5);
+          ctx.fillStyle = hexAlpha('#ffffff', 0.35 + pulse * 0.15);
+          roundedRect(ctx, drawX, yBottom - 10, drawW, 10, 4);
+          ctx.fill();
+        }
+      };
+
+      ctx.save();
       if (currentSong) {
         const lookAhead = (hitY + 40) / pps + 0.5;
         const lookBehind = keyboardH / pps + 2;
 
-        ctx.save();
         for (const note of currentSong.notes) {
           if (!trackVisible(note.trackIndex)) continue;
           const end = note.start + note.duration;
           if (end < time - lookBehind || note.start > time + lookAhead) continue;
 
           const color = noteColor(note.trackIndex, note.pitch, note.start);
-          const xCenter = pitchToX(note.pitch, w);
-          const keyW = isBlackKey(note.pitch)
-            ? whiteKeyWidth(w) * 0.55
-            : whiteKeyWidth(w) * 0.88;
           const noteH = Math.max(6, note.duration * pps);
           const yBottom = hitY - (note.start - time) * pps;
           const yTop = yBottom - noteH;
-
-          if (yTop > hitY + 20 || yBottom < -20) continue;
-
           const isActive = note.start <= time && end > time;
-          const pulse = musicFieldRef.current.getPulse();
-          const bass = musicFieldRef.current.getBassKick();
-          const reactiveBoost = s.musicReactive.enabled
-            ? 1 + pulse * 0.12 + (isActive ? bass * 0.08 : 0)
-            : 1;
-          const alpha = s.noteOpacity * (0.55 + note.velocity * 0.45);
-
-          if (s.glowStrength > 0.05) {
-            ctx.shadowColor = hexAlpha(color, 0.55 * s.glowStrength * (isActive ? 1 + pulse * 0.4 : 1));
-            ctx.shadowBlur = 18 * s.glowStrength * (isActive ? 1.4 + pulse * 0.6 : 1) * reactiveBoost;
-          } else {
-            ctx.shadowBlur = 0;
-          }
-
-          const drawW = keyW * (isActive ? reactiveBoost : 1);
-          const drawX = xCenter - drawW / 2;
-          const grad = ctx.createLinearGradient(drawX, yTop, drawX, yBottom);
-          grad.addColorStop(0, hexAlpha(color, alpha * 0.75));
-          grad.addColorStop(0.5, hexAlpha(color, alpha));
-          grad.addColorStop(1, hexAlpha(color, alpha * 0.9));
-          ctx.fillStyle = grad;
-          roundedRect(ctx, drawX, yTop, drawW, noteH, 5);
-          ctx.fill();
-
-          if (isActive) {
-            ctx.shadowBlur = 24 * s.glowStrength * (1 + pulse * 0.5);
-            ctx.fillStyle = hexAlpha('#ffffff', 0.35 + pulse * 0.15);
-            roundedRect(ctx, drawX, yBottom - 10, drawW, 10, 4);
-            ctx.fill();
-          }
+          drawNoteBar(note.pitch, note.velocity, color, yTop, yBottom, isActive);
         }
-        ctx.shadowBlur = 0;
-        ctx.restore();
       }
+
+      // Live MIDI: bars grow upward from hit line while held, then scroll up
+      for (const note of liveVisual) {
+        const isHeld = note.wallEnd === null;
+        const durationSec = Math.max(
+          0.03,
+          ((isHeld ? wallNow : note.wallEnd!) - note.wallStart) / 1000,
+        );
+        const releaseAgeSec = isHeld ? 0 : (wallNow - note.wallEnd!) / 1000;
+        const noteH = Math.max(6, durationSec * pps);
+        // Bottom stays on hit rail while held; after release the whole bar rises
+        const yBottom = hitY - releaseAgeSec * pps;
+        const yTop = yBottom - noteH;
+        if (yBottom < -20) continue;
+
+        const color = noteColor(liveTrackIdx, note.pitch, note.wallStart / 1000);
+        drawNoteBar(note.pitch, note.velocity, color, yTop, yBottom, isHeld);
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
 
       // Reactive impact rail (replaces dead white line)
       hitRailRef.current.update(dt);
@@ -306,8 +358,8 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
         hitRailRef.current.draw(ctx, w, hitY, activeRail, s.hitRailIntensity);
       }
 
-      // Sustain particles while keys held
-      if (s.particlesEnabled && isPlaying && particleParams.sustainEmit > 0) {
+      // Sustain particles while keys held (song playback or live MIDI)
+      if (s.particlesEnabled && particleParams.sustainEmit > 0 && activeKeys.size > 0) {
         for (const [pitch, info] of activeKeys) {
           const x = pitchToX(pitch, w);
           particlesRef.current.emitSustain(
@@ -366,14 +418,18 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
         }
       }
 
-      if (!currentSong) {
+      if (!currentSong && liveHeld.size === 0 && liveVisual.length === 0) {
         ctx.fillStyle = 'rgba(255,255,255,0.45)';
         ctx.font = '500 18px "Segoe UI", system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('Drop a MIDI file or click Open', w / 2, h / 2 - 10);
         ctx.font = '400 13px "Segoe UI", system-ui, sans-serif';
         ctx.fillStyle = 'rgba(255,255,255,0.28)';
-        ctx.fillText('Multi-track files get separate colors for each hand/track', w / 2, h / 2 + 16);
+        ctx.fillText(
+          'Or enable Live MIDI in the sidebar and play a keyboard',
+          w / 2,
+          h / 2 + 16,
+        );
       }
 
       raf = requestAnimationFrame(draw);

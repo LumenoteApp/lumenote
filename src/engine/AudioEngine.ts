@@ -5,6 +5,7 @@ import {
   createToneInstrument,
   getInstrumentInfo,
 } from './instruments';
+import { midiIO } from './MidiIO';
 
 /**
  * Lazy-loads audio backends after a user gesture.
@@ -24,6 +25,8 @@ export class AudioEngine {
   private sf2Name: string | null = null;
   private sf2Buffer: ArrayBuffer | null = null;
   private volume = 0.85; // 0–1
+  /** Live held notes: key = `${channel}:${pitch}` */
+  private liveHeld = new Set<string>();
 
   async init() {
     if (!this.Tone) {
@@ -167,6 +170,8 @@ export class AudioEngine {
   }
 
   clearSchedule() {
+    midiIO.allNotesOff();
+    this.liveHeld.clear();
     if (!this.Tone || !this.ready) {
       this.toneSynth?.releaseAll?.();
       return;
@@ -193,6 +198,102 @@ export class AudioEngine {
     }
   }
 
+  /**
+   * Immediate note-on for live MIDI / on-screen keyboard.
+   * Velocity is 0–1. Does not touch the transport schedule.
+   */
+  noteOn(pitch: number, velocity: number, channel = 0) {
+    if (!this.Tone || !this.ready) return;
+    const ch = Math.min(15, Math.max(0, channel));
+    const pitchMidi = Math.min(127, Math.max(0, pitch | 0));
+    const vel = Math.max(0.01, Math.min(1, velocity));
+    const key = `${ch}:${pitchMidi}`;
+    this.liveHeld.add(key);
+    const backend = this.getBackend();
+    const v127 = Math.max(1, Math.min(127, Math.round(vel * 127)));
+
+    try {
+      if (backend === 'tone' && this.toneSynth) {
+        const pitchName = this.Tone.Frequency(pitchMidi, 'midi').toNote();
+        const synth = this.toneSynth;
+        if (typeof synth.triggerAttack === 'function') {
+          synth.triggerAttack(pitchName, undefined, vel);
+        } else if (typeof synth.triggerAttackRelease === 'function') {
+          // Pluck-style: one-shot
+          synth.triggerAttackRelease(pitchName, 0.4, undefined, vel);
+        }
+      } else if (backend === 'tinysynth' && this.tinySynth) {
+        this.tinySynth.noteOn(ch, pitchMidi, v127);
+      } else if (backend === 'sf2' && this.sf2Synth) {
+        this.sf2Synth.noteOn(ch, pitchMidi, v127);
+      }
+    } catch {
+      /* voice steal / backend glitch */
+    }
+  }
+
+  /** Immediate note-off for live MIDI. */
+  noteOff(pitch: number, channel = 0) {
+    if (!this.Tone || !this.ready) return;
+    const ch = Math.min(15, Math.max(0, channel));
+    const pitchMidi = Math.min(127, Math.max(0, pitch | 0));
+    const key = `${ch}:${pitchMidi}`;
+    this.liveHeld.delete(key);
+    const backend = this.getBackend();
+
+    try {
+      if (backend === 'tone' && this.toneSynth) {
+        const pitchName = this.Tone.Frequency(pitchMidi, 'midi').toNote();
+        this.toneSynth.triggerRelease?.(pitchName);
+      } else if (backend === 'tinysynth' && this.tinySynth) {
+        this.tinySynth.noteOff(ch, pitchMidi);
+      } else if (backend === 'sf2' && this.sf2Synth) {
+        this.sf2Synth.noteOff(ch, pitchMidi);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Release all live-held notes without cancelling the transport schedule. */
+  releaseLiveNotes() {
+    if (!this.Tone || !this.ready) {
+      this.liveHeld.clear();
+      return;
+    }
+    const backend = this.getBackend();
+    for (const key of this.liveHeld) {
+      const [chStr, pitchStr] = key.split(':');
+      const ch = Number(chStr);
+      const pitchMidi = Number(pitchStr);
+      try {
+        if (backend === 'tone' && this.toneSynth) {
+          const pitchName = this.Tone.Frequency(pitchMidi, 'midi').toNote();
+          this.toneSynth.triggerRelease?.(pitchName);
+        } else if (backend === 'tinysynth' && this.tinySynth) {
+          this.tinySynth.noteOff(ch, pitchMidi);
+        } else if (backend === 'sf2' && this.sf2Synth) {
+          this.sf2Synth.noteOff(ch, pitchMidi);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    this.liveHeld.clear();
+  }
+
+  private scheduleMidiOut(
+    type: 'on' | 'off',
+    pitch: number,
+    velocity127: number,
+    channel: number,
+    audioTime: number,
+  ) {
+    if (!this.Tone || !midiIO.isOutputPlayback() || !midiIO.getOutputId()) return;
+    const ctxTime = this.Tone.getContext().currentTime as number;
+    midiIO.schedulePlaybackNote(type, pitch, velocity127, channel, audioTime, ctxTime);
+  }
+
   scheduleNotes(notes: NoteEvent[], tracks: TrackInfo[], fromTime: number) {
     if (!this.Tone || !this.ready) return;
     this.clearSchedule();
@@ -201,6 +302,7 @@ export class AudioEngine {
     const transport = this.Tone.getTransport();
     const backend = this.getBackend();
     const Tone = this.Tone;
+    const self = this;
 
     for (const n of notes) {
       if (muted.has(n.trackIndex)) continue;
@@ -214,6 +316,7 @@ export class AudioEngine {
       const pitchName = Tone.Frequency(pitchMidi, 'midi').toNote();
       const vel = n.velocity;
       const ch = Math.min(15, Math.max(0, n.channel ?? 0));
+      const v127 = Math.max(1, Math.min(127, Math.round(vel * 127)));
 
       if (backend === 'tone' && this.toneSynth) {
         const synth = this.toneSynth;
@@ -230,24 +333,30 @@ export class AudioEngine {
           } catch {
             /* ignore voice steal errors */
           }
+          self.scheduleMidiOut('on', pitchMidi, v127, ch, time);
         }, start);
+        transport.schedule((time: number) => {
+          self.scheduleMidiOut('off', pitchMidi, 0, ch, time);
+        }, start + duration);
       } else if (backend === 'tinysynth' && this.tinySynth) {
         const tiny = this.tinySynth;
-        const v127 = Math.max(1, Math.min(127, Math.round(vel * 127)));
         transport.schedule((time: number) => {
           tiny.noteOn(ch, pitchMidi, v127, time);
+          self.scheduleMidiOut('on', pitchMidi, v127, ch, time);
         }, start);
         transport.schedule((time: number) => {
           tiny.noteOff(ch, pitchMidi, time);
+          self.scheduleMidiOut('off', pitchMidi, 0, ch, time);
         }, start + duration);
       } else if (backend === 'sf2' && this.sf2Synth) {
         const sf = this.sf2Synth;
-        const v127 = Math.max(1, Math.min(127, Math.round(vel * 127)));
         transport.schedule((time: number) => {
           sf.noteOn(ch, pitchMidi, v127, { time });
+          self.scheduleMidiOut('on', pitchMidi, v127, ch, time);
         }, start);
         transport.schedule((time: number) => {
           sf.noteOff(ch, pitchMidi, { time });
+          self.scheduleMidiOut('off', pitchMidi, 0, ch, time);
         }, start + duration);
       }
     }

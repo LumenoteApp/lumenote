@@ -1,7 +1,7 @@
 # Session notes — NoteFall
 
 **Purpose:** handoff for a new chat/agent with a clean context window.  
-**Last updated:** 2026-08-02  
+**Last updated:** 2026-08-03  
 
 Read this first, then `docs/ARCHITECTURE.md` if you need to change code.
 
@@ -43,6 +43,7 @@ SF2 worklet must be served from public (already there):
 | **Scene presets** | Full lookbooks + user saves in `localStorage` (`notefall-scene-presets-v1`) |
 | **Surprise me** | Category toggles + one-shot randomize + **Party mode** (smooth param dance) |
 | **Sound** | Built-in instruments + load SF2/SF3 |
+| **Live MIDI** | Web MIDI in (keyboard) + out (song playback / thru) |
 | **Colors** | Modes (track/RGB/pitch/…) + palettes |
 | **Visuals / Particles / Background / Music reactive** | Detailed sliders + per-section randomize |
 | **Fullscreen** | `F` / ⛶ — player-only chrome, browser fullscreen |
@@ -80,23 +81,31 @@ Scene presets can store `instrumentId: 'sf2'` but **not** the soundfont binary. 
 
 `normalizeColorSettings()` merges partial/stale settings (HMR) so UI doesn’t crash on `.toFixed`.
 
+### 6. Live MIDI
+
+- **In:** `midiIO` → `playbackEngine.liveNoteOn/Off` (audio + keyboard/particles). Does **not** reschedule Tone transport.
+- **Out:** song notes scheduled in the same transport callbacks as audio; optional **Thru** echoes input → output.
+- Reanchor / pause / stop clears live held notes (synth `releaseAll` would leave stuck lit keys otherwise).
+- Chrome/Edge/Opera desktop; not Safari/Firefox Web MIDI (UI explains).
+
 ---
 
 ## Key files (where to edit)
 
 ```
-src/App.tsx                 # Screens, wiring, party loop, fullscreen
+src/App.tsx                 # Screens, wiring, party loop, fullscreen, MIDI note bridge
 src/engine/PlaybackEngine.ts
 src/engine/AudioEngine.ts
+src/engine/MidiIO.ts          # Web MIDI access, ports, thru / playback out
 src/engine/instruments.ts
 src/midi/parseMidi.ts
-src/render/VisualizerCanvas.tsx   # Main rAF draw loop
+src/render/VisualizerCanvas.tsx   # Main rAF draw loop (+ live keys)
 src/render/ParticleSystem.ts
 src/render/MusicReactiveField.ts
 src/render/BackgroundEffects.ts
 src/render/HitRail.ts
 src/theme/*                   # Presets, randomize, scene presets
-src/ui/*                      # Panels, home, transport
+src/ui/*                      # Panels (incl. MidiPanel), home, transport
 docs/SESSION_NOTES.md         # This file
 docs/ARCHITECTURE.md
 docs/DEVELOPMENT.md
@@ -110,16 +119,17 @@ docs/DEVELOPMENT.md
 2. **Scene presets**  
 3. **Surprise me** (randomizer + party)  
 4. **Sound**  
-5. **Colors**  
-6. Settings panels (visuals, music reactive, background, particles)  
-7. Tips  
+5. **Live MIDI**  
+6. **Colors** (Track panel)  
+7. Settings panels (visuals, music reactive, background, particles)  
+8. Tips  
 
 ---
 
 ## Known limitations / future ideas
 
 - No built-in MP4 export (screen-record fullscreen)  
-- No live Web MIDI input yet  
+- Live Web MIDI in/out (Chromium); no browser QWERTY piano yet  
 - Party mode updates React ~30fps (throttled)  
 - SF2 large files can be slow to load first time  
 - Commit author email on GitHub: `slopdai@proton.me` (public in git history — not a secret, but personal)
@@ -138,7 +148,7 @@ docs/DEVELOPMENT.md
 
 1. GitHub Pages / Vercel deploy + homepage URL on repo  
 2. Built-in video export  
-3. Web MIDI live keyboard  
+3. On-screen / QWERTY piano (in addition to hardware MIDI)  
 4. Rewrite git history to GitHub noreply email (optional privacy)  
 5. Real screenshots of the app in README  
 

@@ -103,6 +103,8 @@ export type MusicReactiveParams = {
 
 export type ColorMode =
   | 'track'
+  | 'palette'
+  | 'palette_wave'
   | 'rainbow_time'
   | 'rainbow_pitch'
   | 'rainbow_wave'
