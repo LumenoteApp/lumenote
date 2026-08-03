@@ -393,8 +393,8 @@
 }
 
 /* ── Player-only / fullscreen ── */
-.app.player-only .main {
-  grid-template-columns: 1fr;
+.main-player-only {
+  display: block;
 }
 
 .stage-player-only {
@@ -402,6 +402,14 @@
   width: 100%;
   height: 100%;
   background: #000;
+  display: block;
+}
+
+.stage-player-only .stage-view {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .stage-player-only:fullscreen,
@@ -518,6 +526,11 @@
   cursor: default;
 }
 
+.app.player-only .sidebar-overlay,
+.app.player-only .sidebar-edge-toggle {
+  cursor: default;
+}
+
 .file-name {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.55);
@@ -607,16 +620,26 @@
 /* ── Main layout ── */
 .main {
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 300px;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .stage {
   position: relative;
+  flex: 1;
   min-width: 0;
   min-height: 0;
   background: #07080c;
+  display: flex;
+  flex-direction: row;
+}
+
+.stage-view {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 .visualizer-canvas {
@@ -647,13 +670,124 @@
 
 /* ── Sidebar ── */
 .sidebar {
+  width: 300px;
+  flex-shrink: 0;
   border-left: 1px solid rgba(255, 255, 255, 0.06);
   background: #0b0d14;
   overflow-y: auto;
-  padding: 1rem 0.9rem 1.5rem;
+  overflow-x: hidden;
+  padding: 0.9rem 0.85rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.85rem;
+  z-index: 8;
+}
+
+.sidebar-brand-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.sidebar-brand-row .brand {
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar-dismiss {
+  flex-shrink: 0;
+  opacity: 0.7;
+  margin-top: 0.1rem;
+}
+
+.sidebar-dismiss:hover {
+  opacity: 1;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.sidebar-section-label {
+  margin: 0.2rem 0 0;
+  padding: 0 0.1rem;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.28);
+  font-weight: 650;
+}
+
+/* Fullscreen: panel floats over the piano (does not resize the stage) */
+.sidebar.sidebar-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(320px, 90vw);
+  z-index: 20;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(9, 11, 18, 0.94);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  box-shadow: -18px 0 48px rgba(0, 0, 0, 0.55);
+  transform: translateX(0);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: auto;
+}
+
+.sidebar.sidebar-overlay.is-collapsed {
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+/* Edge chevron — peeks from the right in fullscreen */
+.sidebar-edge-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  z-index: 22;
+  transform: translateY(-50%);
+  width: 1.35rem;
+  height: 3.4rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  background: rgba(12, 14, 22, 0.82);
+  backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition:
+    right 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.15s,
+    color 0.15s,
+    opacity 0.2s;
+  opacity: 0.72;
+}
+
+.sidebar-edge-toggle:hover {
+  opacity: 1;
+  background: rgba(20, 24, 36, 0.92);
+  color: #fff;
+}
+
+.sidebar-edge-toggle.open {
+  right: min(320px, 90vw);
+  opacity: 0.9;
+}
+
+.sidebar-edge-chevron {
+  display: block;
+  transform: translateX(-1px);
+  font-weight: 600;
 }
 
 .brand h1 {
@@ -955,12 +1089,12 @@
 }
 
 @media (max-width: 900px) {
-  .main {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto;
+  .stage:not(.stage-player-only) {
+    flex-direction: column;
   }
 
-  .sidebar {
+  .sidebar:not(.sidebar-overlay) {
+    width: 100%;
     border-left: none;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     max-height: 40vh;

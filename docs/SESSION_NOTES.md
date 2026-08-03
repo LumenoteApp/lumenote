@@ -46,12 +46,12 @@ SF2 worklet must be served from public (already there):
 | **Live MIDI** | Web MIDI in (keyboard) + out (song playback / thru) |
 | **Colors** | Modes (track/RGB/pitch/…) + palettes |
 | **Visuals / Particles / Background / Music reactive** | Detailed sliders + per-section randomize |
-| **Fullscreen** | `F` / ⛶ — player-only chrome, browser fullscreen |
+| **Fullscreen** | `F` / ⛶ — player-only chrome; **`B`** or edge **‹** opens studio panel as overlay |
 
 ### Shortcuts
 
 - `Space` play/pause · `R` stop · `←`/`→` seek 2s  
-- `F` player fullscreen · `Esc` exit · `Ctrl+P` party mode  
+- `F` player fullscreen · `B` studio panel overlay · `Esc` close panel / exit · `Ctrl+P` party mode  
 
 ---
 
@@ -115,14 +115,15 @@ docs/DEVELOPMENT.md
 
 ## Sidebar order (studio)
 
+Grouped sections with labels; docked in studio, **overlay** in fullscreen (`B` / edge ‹):
+
 1. Brand (click → home)  
-2. **Scene presets**  
-3. **Surprise me** (randomizer + party)  
-4. **Sound**  
-5. **Live MIDI**  
-6. **Colors** (Track panel)  
-7. Settings panels (visuals, music reactive, background, particles)  
-8. Tips  
+2. **Scene** — presets · Surprise me / party  
+3. **Audio** — Sound · Live MIDI  
+4. **Look** — Colors/tracks · Visuals / reactive / bg / particles  
+5. **Shortcuts**  
+
+Fullscreen: panel slides over the piano (does not shrink the stage).  
 
 ---
 

@@ -73,6 +73,8 @@ export default function App() {
   });
   const [dragOver, setDragOver] = useState(false);
   const [playerOnly, setPlayerOnly] = useState(false);
+  /** Overlay studio panel while in player fullscreen (does not shrink the stage) */
+  const [fsSidebarOpen, setFsSidebarOpen] = useState(false);
   const [chromeVisible, setChromeVisible] = useState(true);
   const hideChromeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Landing page vs studio */
@@ -254,6 +256,7 @@ export default function App() {
 
   const exitPlayerOnly = useCallback(async () => {
     setPlayerOnly(false);
+    setFsSidebarOpen(false);
     setChromeVisible(true);
     if (document.fullscreenElement) {
       try {
@@ -266,6 +269,7 @@ export default function App() {
 
   const enterPlayerOnly = useCallback(async () => {
     setPlayerOnly(true);
+    setFsSidebarOpen(false);
     setChromeVisible(true);
     const el = playerRef.current;
     if (el?.requestFullscreen) {
@@ -286,6 +290,7 @@ export default function App() {
     const onFs = () => {
       if (!document.fullscreenElement && playerOnly) {
         setPlayerOnly(false);
+        setFsSidebarOpen(false);
         setChromeVisible(true);
       }
     };
@@ -402,14 +407,26 @@ export default function App() {
       } else if (e.code === 'KeyP' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         setRandomizer((c) => ({ ...c, partyMode: !c.partyMode }));
+      } else if (e.code === 'KeyB' && playerOnly) {
+        e.preventDefault();
+        setFsSidebarOpen((o) => !o);
       } else if (e.code === 'Escape' && playerOnly) {
         e.preventDefault();
-        void exitPlayerOnly();
+        if (fsSidebarOpen) setFsSidebarOpen(false);
+        else void exitPlayerOnly();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onPlayPause, onStop, onSeek, togglePlayerOnly, exitPlayerOnly, playerOnly]);
+  }, [
+    onPlayPause,
+    onStop,
+    onSeek,
+    togglePlayerOnly,
+    exitPlayerOnly,
+    playerOnly,
+    fsSidebarOpen,
+  ]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -512,173 +529,234 @@ export default function App() {
         }}
       />
 
-      <div className="main">
+      <div className={`main ${playerOnly ? 'main-player-only' : ''}`}>
         <div
           ref={playerRef}
-          className={`stage ${playerOnly ? 'stage-player-only' : ''}`}
+          className={`stage ${playerOnly ? 'stage-player-only' : ''} ${playerOnly && fsSidebarOpen ? 'sidebar-open' : ''}`}
           onMouseMove={bumpChrome}
           onClick={bumpChrome}
         >
-          {loading && <div className="overlay">Loading MIDI…</div>}
-          {error && (
-            <div className="overlay error" onClick={() => setError(null)}>
-              {error}
-            </div>
-          )}
-          {randomizer.partyMode && (
-            <div className="party-badge" title="Party mode active">
-              🎉 Party
-            </div>
-          )}
-          <VisualizerCanvas
-            song={song}
-            tracks={tracks}
-            settings={settings}
-            seekTime={currentTime}
-            playing={playing}
-          />
-
-          {playerOnly && (
-            <div
-              className={`player-chrome ${chromeVisible ? 'visible' : 'hidden'}`}
-              onMouseMove={bumpChrome}
-            >
-              <div className="player-chrome-bar">
-                <div className="player-chrome-left">
-                  <span className="player-title" title={song?.name ?? undefined}>
-                    {song?.name ?? 'No file'}
-                  </span>
-                  {randomizer.partyMode && <span className="party-inline">🎉</span>}
-                </div>
-                <div className="player-chrome-center">
-                  <button type="button" className="btn icon" onClick={onStop} title="Stop (R)">
-                    ⏹
-                  </button>
-                  <button
-                    type="button"
-                    className="btn icon play"
-                    onClick={() => void onPlayPause()}
-                    title="Play / Pause (Space)"
-                  >
-                    {playing ? '⏸' : '▶'}
-                  </button>
-                  <span className="time">
-                    {formatTime(currentTime)}
-                    <span className="time-sep">/</span>
-                    {formatTime(song?.duration ?? 0)}
-                  </span>
-                </div>
-                <div className="player-chrome-right">
-                  <button
-                    type="button"
-                    className={`btn compact-btn ${randomizer.partyMode ? 'party-on' : ''}`}
-                    onClick={() =>
-                      setRandomizer((c) => ({ ...c, partyMode: !c.partyMode }))
-                    }
-                    title="Toggle party mode"
-                  >
-                    🎉
-                  </button>
-                  <button
-                    type="button"
-                    className="btn primary compact-btn"
-                    onClick={() => void exitPlayerOnly()}
-                    title="Exit fullscreen (Esc / F)"
-                  >
-                    Exit ⛶
-                  </button>
-                </div>
+          <div className="stage-view">
+            {loading && <div className="overlay">Loading MIDI…</div>}
+            {error && (
+              <div className="overlay error" onClick={() => setError(null)}>
+                {error}
               </div>
-              <input
-                className="scrubber player-scrubber"
-                type="range"
-                min={0}
-                max={Math.max(song?.duration ?? 0.01, 0.01)}
-                step={0.01}
-                value={Math.min(currentTime, song?.duration || 0)}
-                onChange={(e) => onSeek(Number(e.target.value))}
-                disabled={!song}
-              />
-              <p className="player-hint">Space play · F / Esc exit · move mouse for controls</p>
-            </div>
-          )}
+            )}
+            {randomizer.partyMode && (
+              <div className="party-badge" title="Party mode active">
+                🎉 Party
+              </div>
+            )}
+            <VisualizerCanvas
+              song={song}
+              tracks={tracks}
+              settings={settings}
+              seekTime={currentTime}
+              playing={playing}
+            />
 
-          {!playerOnly && (
-            <button
-              type="button"
-              className="btn icon stage-fullscreen-fab"
-              onClick={() => void enterPlayerOnly()}
-              title="Player fullscreen (F)"
-            >
-              ⛶
-            </button>
-          )}
-        </div>
+            {playerOnly && (
+              <div
+                className={`player-chrome ${chromeVisible || fsSidebarOpen ? 'visible' : 'hidden'}`}
+                onMouseMove={bumpChrome}
+              >
+                <div className="player-chrome-bar">
+                  <div className="player-chrome-left">
+                    <span className="player-title" title={song?.name ?? undefined}>
+                      {song?.name ?? 'No file'}
+                    </span>
+                    {randomizer.partyMode && <span className="party-inline">🎉</span>}
+                  </div>
+                  <div className="player-chrome-center">
+                    <button type="button" className="btn icon" onClick={onStop} title="Stop (R)">
+                      ⏹
+                    </button>
+                    <button
+                      type="button"
+                      className="btn icon play"
+                      onClick={() => void onPlayPause()}
+                      title="Play / Pause (Space)"
+                    >
+                      {playing ? '⏸' : '▶'}
+                    </button>
+                    <span className="time">
+                      {formatTime(currentTime)}
+                      <span className="time-sep">/</span>
+                      {formatTime(song?.duration ?? 0)}
+                    </span>
+                  </div>
+                  <div className="player-chrome-right">
+                    <button
+                      type="button"
+                      className={`btn compact-btn ${randomizer.partyMode ? 'party-on' : ''}`}
+                      onClick={() =>
+                        setRandomizer((c) => ({ ...c, partyMode: !c.partyMode }))
+                      }
+                      title="Toggle party mode"
+                    >
+                      🎉
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn compact-btn ${fsSidebarOpen ? 'primary' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFsSidebarOpen((o) => !o);
+                      }}
+                      title="Studio panel (B)"
+                    >
+                      {fsSidebarOpen ? 'Panel ›' : '‹ Panel'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn primary compact-btn"
+                      onClick={() => void exitPlayerOnly()}
+                      title="Exit fullscreen (Esc / F)"
+                    >
+                      Exit ⛶
+                    </button>
+                  </div>
+                </div>
+                <input
+                  className="scrubber player-scrubber"
+                  type="range"
+                  min={0}
+                  max={Math.max(song?.duration ?? 0.01, 0.01)}
+                  step={0.01}
+                  value={Math.min(currentTime, song?.duration || 0)}
+                  onChange={(e) => onSeek(Number(e.target.value))}
+                  disabled={!song}
+                />
+                <p className="player-hint">
+                  Space play · B panel · F / Esc exit · move mouse for controls
+                </p>
+              </div>
+            )}
 
-        {!playerOnly && (
-          <aside className="sidebar">
-            <div className="brand">
+            {!playerOnly && (
               <button
                 type="button"
-                className="brand-home-btn"
-                onClick={() => setScreen('home')}
-                title="Back to home"
+                className="btn icon stage-fullscreen-fab"
+                onClick={() => void enterPlayerOnly()}
+                title="Player fullscreen (F)"
               >
-                <h1>Lumenote</h1>
-                <p>Multi-track MIDI visualizer · Home</p>
+                ⛶
               </button>
+            )}
+          </div>
+
+          {playerOnly && (
+            <button
+              type="button"
+              className={`sidebar-edge-toggle ${fsSidebarOpen ? 'open' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setFsSidebarOpen((o) => !o);
+              }}
+              title={fsSidebarOpen ? 'Hide studio panel (B)' : 'Show studio panel (B)'}
+              aria-label={fsSidebarOpen ? 'Hide studio panel' : 'Show studio panel'}
+              aria-expanded={fsSidebarOpen}
+            >
+              <span className="sidebar-edge-chevron" aria-hidden>
+                {fsSidebarOpen ? '›' : '‹'}
+              </span>
+            </button>
+          )}
+
+          <aside
+            className={`sidebar ${playerOnly ? 'sidebar-overlay' : ''} ${playerOnly && !fsSidebarOpen ? 'is-collapsed' : ''}`}
+            onMouseMove={(e) => {
+              e.stopPropagation();
+              bumpChrome();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sidebar-brand-row">
+              <div className="brand">
+                <button
+                  type="button"
+                  className="brand-home-btn"
+                  onClick={() => {
+                    if (playerOnly) void exitPlayerOnly();
+                    setScreen('home');
+                  }}
+                  title="Back to home"
+                >
+                  <h1>Lumenote</h1>
+                  <p>{playerOnly ? 'Studio overlay' : 'Multi-track visualizer · Home'}</p>
+                </button>
+              </div>
+              {playerOnly && (
+                <button
+                  type="button"
+                  className="btn icon sidebar-dismiss"
+                  onClick={() => setFsSidebarOpen(false)}
+                  title="Hide panel (B)"
+                  aria-label="Hide studio panel"
+                >
+                  ›
+                </button>
+              )}
             </div>
 
-            {/* Surprise me — under brand, above Colors */}
-            <ScenePresetPanel
-              settings={settings}
-              instrumentId={instrumentId}
-              volume={volume}
-              activePresetId={activeScenePresetId}
-              onLoad={(p) => void loadScenePreset(p)}
-              onActiveId={setActiveScenePresetId}
-            />
+            <div className="sidebar-section">
+              <p className="sidebar-section-label">Scene</p>
+              <ScenePresetPanel
+                settings={settings}
+                instrumentId={instrumentId}
+                volume={volume}
+                activePresetId={activeScenePresetId}
+                onLoad={(p) => void loadScenePreset(p)}
+                onActiveId={setActiveScenePresetId}
+              />
+              <RandomizerDock
+                config={randomizer}
+                onChange={setRandomizer}
+                onSurprise={() => {
+                  setActiveScenePresetId(null);
+                  onSurprise();
+                }}
+              />
+            </div>
 
-            <RandomizerDock
-              config={randomizer}
-              onChange={setRandomizer}
-              onSurprise={() => {
-                setActiveScenePresetId(null);
-                onSurprise();
-              }}
-            />
+            <div className="sidebar-section">
+              <p className="sidebar-section-label">Audio</p>
+              <SoundPanel
+                instrumentId={instrumentId}
+                sf2Name={sf2Name}
+                volume={volume}
+                onInstrumentChange={(id) => {
+                  setInstrumentId(id);
+                  setActiveScenePresetId(null);
+                }}
+                onVolumeChange={(v) => {
+                  setVolume(v);
+                  setActiveScenePresetId(null);
+                }}
+                onSf2Loaded={setSf2Name}
+              />
+              <MidiPanel />
+            </div>
 
-            <SoundPanel
-              instrumentId={instrumentId}
-              sf2Name={sf2Name}
-              volume={volume}
-              onInstrumentChange={(id) => {
-                setInstrumentId(id);
-                setActiveScenePresetId(null);
-              }}
-              onVolumeChange={(v) => {
-                setVolume(v);
-                setActiveScenePresetId(null);
-              }}
-              onSf2Loaded={setSf2Name}
-            />
+            <div className="sidebar-section">
+              <p className="sidebar-section-label">Look</p>
+              <TrackPanel
+                tracks={tracks}
+                colors={settings.colors}
+                onTracksChange={onTracksChange}
+                onColorsChange={onColorsChange}
+              />
+              <SettingsPanel
+                settings={settings}
+                onChange={(next) => {
+                  applySettings(next, settings.colors.paletteId);
+                }}
+              />
+            </div>
 
-            <MidiPanel />
-
-            <TrackPanel
-              tracks={tracks}
-              colors={settings.colors}
-              onTracksChange={onTracksChange}
-              onColorsChange={onColorsChange}
-            />
-            <SettingsPanel
-              settings={settings}
-              onChange={(next) => {
-                applySettings(next, settings.colors.paletteId);
-              }}
-            />
             <section className="panel tips">
-              <h2>Tips</h2>
+              <h2>Shortcuts</h2>
               <ul>
                 <li>
                   <kbd>Space</kbd> play/pause
@@ -690,16 +768,18 @@ export default function App() {
                   <kbd>F</kbd> player fullscreen
                 </li>
                 <li>
+                  <kbd>B</kbd> studio panel (fullscreen)
+                </li>
+                <li>
                   <kbd>Ctrl</kbd>+<kbd>P</kbd> party mode
                 </li>
                 <li>
                   <kbd>←</kbd> <kbd>→</kbd> seek 2s
                 </li>
-                <li>Live MIDI panel: keyboard in + hardware out</li>
               </ul>
             </section>
           </aside>
-        )}
+        </div>
       </div>
     </div>
   );
