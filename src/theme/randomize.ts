@@ -119,6 +119,7 @@ export type VisualCoreRandom = Pick<
   | 'glowStrength'
   | 'backgroundColor'
   | 'showKeyboard'
+  | 'keyboardHeight'
   | 'showHitRail'
   | 'hitRailIntensity'
 >;
@@ -130,6 +131,7 @@ export function randomizeVisuals(): VisualCoreRandom {
     glowStrength: snap(rand(0.2, 1)),
     backgroundColor: randomBgBaseColor(),
     showKeyboard: Math.random() > 0.12,
+    keyboardHeight: Math.round(rand(140, 240) / 4) * 4,
     showHitRail: Math.random() > 0.15,
     hitRailIntensity: snap(rand(0.35, 1.15)),
   };

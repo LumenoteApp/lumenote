@@ -133,6 +133,8 @@ export type VisualSettings = {
   colors: ColorSettings;
   backgroundColor: string;
   showKeyboard: boolean;
+  /** On-screen piano height in CSS pixels */
+  keyboardHeight: number;
   /** Impact rail above the keyboard (reactive hit line) */
   showHitRail: boolean;
   hitRailIntensity: number;

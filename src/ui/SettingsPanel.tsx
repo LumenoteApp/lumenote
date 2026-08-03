@@ -211,6 +211,22 @@ export function SettingsPanel({ settings, onChange }: Props) {
           <span>Show keyboard</span>
         </label>
 
+        <label className="field compact">
+          <span className="field-label">
+            Piano height
+            <em>{Math.round(settings.keyboardHeight ?? 200)}px</em>
+          </span>
+          <input
+            type="range"
+            min={100}
+            max={280}
+            step={4}
+            value={settings.keyboardHeight ?? 200}
+            disabled={!settings.showKeyboard}
+            onChange={(e) => set('keyboardHeight', Number(e.target.value))}
+          />
+        </label>
+
         <label className="field check">
           <input
             type="checkbox"

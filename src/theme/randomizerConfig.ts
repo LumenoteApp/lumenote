@@ -110,6 +110,7 @@ export function randomizeContinuousTargets(
       pixelsPerSecond: v.pixelsPerSecond,
       noteOpacity: v.noteOpacity,
       glowStrength: v.glowStrength,
+      keyboardHeight: v.keyboardHeight,
       hitRailIntensity: v.hitRailIntensity,
       // soft drift base color occasionally handled as discrete
     };
@@ -309,6 +310,7 @@ export function lerpSettings(
       pixelsPerSecond: lerp(from.pixelsPerSecond, to.pixelsPerSecond, e),
       noteOpacity: lerp(from.noteOpacity, to.noteOpacity, e),
       glowStrength: lerp(from.glowStrength, to.glowStrength, e),
+      keyboardHeight: lerp(from.keyboardHeight, to.keyboardHeight, e),
       hitRailIntensity: lerp(from.hitRailIntensity, to.hitRailIntensity, e),
       backgroundColor: to.backgroundColor !== from.backgroundColor && k > 0.92
         ? to.backgroundColor

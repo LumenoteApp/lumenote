@@ -16,9 +16,19 @@ type Props = {
   playing: boolean;
 };
 
-/** ~1.7× original 96px height */
-const KEYBOARD_H = 163;
+const DEFAULT_KEYBOARD_H = 200;
+const MIN_KEYBOARD_H = 100;
+const MAX_KEYBOARD_H = 280;
+/** Kept so any stale HMR draw loop that still references KEYBOARD_H won't crash */
+const KEYBOARD_H = DEFAULT_KEYBOARD_H;
 const HIT_LINE_PAD = 10;
+
+function resolveKeyboardH(settings: VisualSettings): number {
+  if (!settings.showKeyboard) return 28;
+  const h = Number(settings.keyboardHeight);
+  if (!Number.isFinite(h)) return KEYBOARD_H;
+  return Math.max(MIN_KEYBOARD_H, Math.min(MAX_KEYBOARD_H, h));
+}
 
 function roundedRect(
   ctx: CanvasRenderingContext2D,
@@ -83,7 +93,7 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
-      const keyboardH = s.showKeyboard ? KEYBOARD_H : 28;
+      const keyboardH = resolveKeyboardH(s);
       const hitY = h - keyboardH - HIT_LINE_PAD;
       const x = pitchToX(note.pitch, w);
       const color = resolveNoteColor({
@@ -155,7 +165,7 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
-      const keyboardH = s.showKeyboard ? KEYBOARD_H : 28;
+      const keyboardH = resolveKeyboardH(s);
       const hitY = h - keyboardH - HIT_LINE_PAD;
       const pps = s.pixelsPerSecond;
 

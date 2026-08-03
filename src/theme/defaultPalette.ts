@@ -46,6 +46,7 @@ export const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
   colors: { ...DEFAULT_COLOR_SETTINGS },
   backgroundColor: '#07080c',
   showKeyboard: true,
+  keyboardHeight: 200,
   showHitRail: true,
   hitRailIntensity: 0.85,
 };
