@@ -4,7 +4,9 @@ import { DEFAULT_VISUAL_SETTINGS } from './defaultPalette';
 import { normalizeColorSettings } from './colorPresets';
 import { getPreset as getParticlePreset } from './particlePresets';
 
-const STORAGE_KEY = 'notefall-scene-presets-v1';
+const STORAGE_KEY = 'lumenote-scene-presets-v1';
+/** Previous brand — migrate once so saved looks aren't lost */
+const LEGACY_STORAGE_KEY = 'notefall-scene-presets-v1';
 
 /** Full snapshot of the studio look + sound */
 export type ScenePresetData = {
@@ -468,7 +470,19 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
 
 function readUserPresets(): ScenePreset[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    let raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacy) {
+        raw = legacy;
+        localStorage.setItem(STORAGE_KEY, legacy);
+        try {
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
     if (!raw) return [];
     const parsed = JSON.parse(raw) as ScenePreset[];
     if (!Array.isArray(parsed)) return [];

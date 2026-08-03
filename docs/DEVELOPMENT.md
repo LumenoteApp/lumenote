@@ -53,7 +53,7 @@ Vite serves `public/` at site root.
 
 ```bash
 git remote -v
-# origin → https://github.com/UnSlopd/notefall.git
+# origin → https://github.com/UnSlopd/lumenote.git
 
 git status
 git add -A

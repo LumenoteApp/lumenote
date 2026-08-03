@@ -1,13 +1,13 @@
-# Agent instructions (NoteFall)
+# Agent instructions (Lumenote)
 
-You are working on **NoteFall**, a browser MIDI piano visualizer.
+You are working on **Lumenote**, a browser MIDI piano visualizer.
 
 ## Before coding
 
 1. Read **`docs/SESSION_NOTES.md`** (handoff + decisions).  
 2. Skim **`docs/ARCHITECTURE.md`** if touching engine/render.  
-3. Project root: `C:\Users\Matt\projects\midi-visualizer`  
-4. Remote: `https://github.com/UnSlopd/notefall`
+3. Project root: `C:\Users\Matt\projects\midi-visualizer` (local folder; product name is Lumenote)  
+4. Remote: `https://github.com/UnSlopd/lumenote`
 
 ## Hard rules
 
@@ -26,8 +26,8 @@ npm run build
 ## New session prompt (copy-paste)
 
 ```
-Continue NoteFall (multi-track MIDI visualizer).
+Continue Lumenote (multi-track MIDI visualizer).
 Path: C:\Users\Matt\projects\midi-visualizer
-GitHub: https://github.com/UnSlopd/notefall
+GitHub: https://github.com/UnSlopd/lumenote
 Read docs/SESSION_NOTES.md and docs/ARCHITECTURE.md first.
 ```

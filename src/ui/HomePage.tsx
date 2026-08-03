@@ -54,8 +54,8 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
 
       <header className="home-nav">
         <div className="home-logo">
-          <span className="home-logo-mark">NF</span>
-          <span className="home-logo-text">NoteFall</span>
+          <span className="home-logo-mark">L</span>
+          <span className="home-logo-text">Lumenote</span>
         </div>
         <button type="button" className="btn home-nav-cta" onClick={onEnter}>
           Open app
@@ -145,7 +145,7 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
       </main>
 
       <footer className="home-foot">
-        <span>NoteFall · runs locally in your browser</span>
+        <span>Lumenote · runs locally in your browser</span>
         <button type="button" className="home-foot-link" onClick={onEnter}>
           Enter app →
         </button>

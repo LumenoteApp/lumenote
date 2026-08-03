@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="docs/banner.jpg" alt="NoteFall — multi-track MIDI piano visualizer" width="100%" />
+  <img src="docs/banner.jpg" alt="Lumenote — multi-track MIDI piano visualizer" width="100%" />
 </p>
 
 <p align="center">
-  <img src="docs/logo.svg" alt="NoteFall logo" width="72" height="72" />
+  <img src="docs/logo.svg" alt="Lumenote logo" width="72" height="72" />
 </p>
 
-<h1 align="center">NoteFall</h1>
+<h1 align="center">Lumenote</h1>
 
 <p align="center">
   <strong>Multi-track MIDI piano visualizer in the browser.</strong><br />
@@ -21,19 +21,19 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/stars/UnSlopd/notefall?style=flat-square&color=4FC3F7" alt="Stars" />
-  <img src="https://img.shields.io/github/forks/UnSlopd/notefall?style=flat-square&color=F48FB1" alt="Forks" />
-  <img src="https://img.shields.io/github/last-commit/UnSlopd/notefall?style=flat-square&color=CE93D8" alt="Last commit" />
-  <img src="https://img.shields.io/github/languages/top/UnSlopd/notefall?style=flat-square&color=80CBC4" alt="Top language" />
+  <img src="https://img.shields.io/github/stars/UnSlopd/lumenote?style=flat-square&color=4FC3F7" alt="Stars" />
+  <img src="https://img.shields.io/github/forks/UnSlopd/lumenote?style=flat-square&color=F48FB1" alt="Forks" />
+  <img src="https://img.shields.io/github/last-commit/UnSlopd/lumenote?style=flat-square&color=CE93D8" alt="Last commit" />
+  <img src="https://img.shields.io/github/languages/top/UnSlopd/lumenote?style=flat-square&color=80CBC4" alt="Top language" />
   <img src="https://img.shields.io/badge/platform-browser-A5D6A7?style=flat-square" alt="Browser" />
 </p>
 
 ---
 
-## Why NoteFall?
+## Why Lumenote?
 
 Most “pretty piano video” tools are paid, watermarked, or locked to one OS.  
-NoteFall is a **local-first web app** you own: load a multi-track MIDI, paint the look, fullscreen, and capture with OBS.
+Lumenote is a **local-first web app** you own: load a multi-track MIDI, paint the look, fullscreen, and capture with OBS.
 
 | You get | Details |
 |--------|---------|
@@ -78,8 +78,8 @@ NoteFall is a **local-first web app** you own: load a multi-track MIDI, paint th
 ## 🚀 Quick start
 
 ```bash
-git clone https://github.com/UnSlopd/notefall.git
-cd notefall
+git clone https://github.com/UnSlopd/lumenote.git
+cd lumenote
 npm install
 npm run dev
 ```

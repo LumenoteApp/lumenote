@@ -1,7 +1,7 @@
-# Session notes — NoteFall
+# Session notes — Lumenote
 
 **Purpose:** handoff for a new chat/agent with a clean context window.  
-**Last updated:** 2026-08-03  
+**Last updated:** 2026-08-03 (rebrand → Lumenote)  
 
 Read this first, then `docs/ARCHITECTURE.md` if you need to change code.
 
@@ -9,10 +9,10 @@ Read this first, then `docs/ARCHITECTURE.md` if you need to change code.
 
 ## What this project is
 
-**NoteFall** — browser multi-track MIDI piano visualizer (Embers/SeeMusic-style, but ours, no watermark).
+**Lumenote** — browser multi-track MIDI piano visualizer (Embers/SeeMusic-style, but ours, no watermark).
 
 - Local path: `C:\Users\Matt\projects\midi-visualizer`
-- GitHub: https://github.com/UnSlopd/notefall (public, account **UnSlopd**)
+- GitHub: https://github.com/UnSlopd/lumenote (public, account **UnSlopd**)
 - Stack: Vite + React + TypeScript, Canvas 2D, Tone.js / TinySynth / SpessaSynth (SF2)
 
 ---
@@ -40,7 +40,7 @@ SF2 worklet must be served from public (already there):
 |------|----------------|
 | **Home** | Landing page (`screen: 'home' \| 'app'` in `App.tsx`) |
 | **Studio** | Player stage + right sidebar |
-| **Scene presets** | Full lookbooks + user saves in `localStorage` (`notefall-scene-presets-v1`) |
+| **Scene presets** | Full lookbooks + user saves in `localStorage` (`lumenote-scene-presets-v1`) |
 | **Surprise me** | Category toggles + one-shot randomize + **Party mode** (smooth param dance) |
 | **Sound** | Built-in instruments + load SF2/SF3 |
 | **Live MIDI** | Web MIDI in (keyboard) + out (song playback / thru) |

@@ -83,7 +83,7 @@ Deep-cloned in presets / party / surprise via helpers in `theme/`.
 ## Scene presets
 
 - Built-ins: `theme/scenePresets.ts` → `BUILTIN_SCENE_PRESETS`  
-- User: `localStorage` key `notefall-scene-presets-v1`  
+- User: `localStorage` key `lumenote-scene-presets-v1`  
 - Capture: settings + instrumentId + volume  
 
 ## Data flow: load MIDI

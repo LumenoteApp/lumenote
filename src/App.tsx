@@ -624,7 +624,7 @@ export default function App() {
                 onClick={() => setScreen('home')}
                 title="Back to home"
               >
-                <h1>NoteFall</h1>
+                <h1>Lumenote</h1>
                 <p>Multi-track MIDI visualizer · Home</p>
               </button>
             </div>
