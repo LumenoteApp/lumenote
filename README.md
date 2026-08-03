@@ -30,6 +30,18 @@
 
 ---
 
+## Demo
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=BjfoS6BrbYg">
+    <img src="https://img.youtube.com/vi/BjfoS6BrbYg/maxresdefault.jpg" alt="Watch the Lumenote demo on YouTube" width="100%" />
+  </a>
+  <br />
+  <a href="https://www.youtube.com/watch?v=BjfoS6BrbYg">Watch the demo on YouTube</a>
+</p>
+
+---
+
 ## Why Lumenote?
 
 Most “pretty piano video” tools are paid, watermarked, or locked to one OS.  
