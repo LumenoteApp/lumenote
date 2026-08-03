@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Requirements: Node.js with npm; modern Chromium/Firefox/Edge recommended for SF2 worklet.
+Requirements: Node.js with npm; **Chrome or Edge** recommended for SF2 worklets, Web MIDI, and offline video bake.
 
 ## Scripts
 
@@ -25,9 +25,11 @@ Requirements: Node.js with npm; modern Chromium/Firefox/Edge recommended for SF2
 - Prefer editing existing modules over new frameworks.  
 - Keep Tone/Spessa **lazy-loaded** after user gesture.  
 - Never reschedule audio on color-only track updates.  
-- When changing `VisualSettings` shape, update `hydrateSceneData` / defaults so old presets don’t break.  
-- UI panels live under `src/ui/`; pure logic/presets under `src/theme/` and `src/engine/`.  
+- When changing `VisualSettings` shape, update `hydrateSceneData` / defaults so old presets don't break.  
+- UI panels under `src/ui/`; pure logic under `src/theme/`, `src/engine/`, `src/export/`.  
+- Live and bake drawing share **`VisualizerEngine`** - keep them in sync.  
 - Styles: mostly `App.css` + `HomePage.css` (no Tailwind required).  
+- Do **not** commit `docs/SESSION_NOTES.md` (gitignored local handoff).  
 
 ## Adding a built-in instrument
 
@@ -48,7 +50,20 @@ After upgrading `spessasynth_lib`, re-copy:
 copy node_modules\spessasynth_lib\dist\spessasynth_processor.min.js public\
 ```
 
+(Unix: `cp node_modules/spessasynth_lib/dist/spessasynth_processor.min.js public/`)
+
 Vite serves `public/` at site root.
+
+Spessa must use a **native** `AudioContext` (see `AudioEngine.getNativeAudioContext`). Tone's wrapped context breaks `AudioWorkletNode`.
+
+## Video export
+
+| Mode | Entry | Notes |
+|------|--------|--------|
+| Bake | `src/export/offlineBake.ts` | WebCodecs + Mediabunny; dynamic import |
+| Realtime | `src/export/VideoExporter.ts` | MediaRecorder + canvas stream |
+
+UI: `src/ui/ExportPanel.tsx`. Prefer bake for smooth 1080p.
 
 ## Git / GitHub
 
@@ -66,7 +81,7 @@ git push origin master
 
 ## Do not
 
-- Commit `node_modules/`, `dist/`, `.env`, secrets  
+- Commit `node_modules/`, `dist/`, `.env`, secrets, or `docs/SESSION_NOTES.md`  
 - Force-push `master` unless user explicitly asks  
 - Reintroduce Embers/SeeMusic cracks or asset rips  
 - Import Tone at module top level (AudioContext warnings / autoplay)  
@@ -77,6 +92,9 @@ git push origin master
 |---------|----------------|
 | Audio silent until click | Expected autoplay policy - press Play |
 | Desync after UI change | Accidental reschedule without reanchor |
-| SF2 fails | Missing worklet file / large file / wrong path |
+| SF2 `AudioWorkletNode` / BaseAudioContext error | Passed Tone wrapper context; use native AC |
+| SF2 fails load | Missing worklet file / large file / wrong path |
 | Crash on color sliders | Missing `normalizeColorSettings` |
 | Party overwrites look | Load preset without disabling party |
+| Realtime export drops frames | Use **Bake** mode instead |
+| Bake audio wrong for GM/SF2 | Known: Soft Piano offline fallback |

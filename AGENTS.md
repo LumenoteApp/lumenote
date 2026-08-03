@@ -13,9 +13,11 @@ You are working on **Lumenote**, a browser MIDI piano visualizer.
 
 - Do **not** break playback reanchor / mute-only reschedule (color changes must not desync audio).  
 - Do **not** start Web Audio / Tone until a user gesture.  
+- Do **not** pass Tone's wrapped AudioContext into Spessa `WorkletSynthesizer` (use native context).  
+- Keep live + bake painting in **`VisualizerEngine`** in sync.  
 - Do **not** commit secrets, `.env`, large private soundfonts, or `docs/SESSION_NOTES.md`.  
 - Confirm before force-push, deploy, or destructive git.  
-- Prefer small, focused diffs; match existing style.
+- Prefer small, focused diffs; match existing style. No em dashes in user-facing copy.
 
 ## Verify
 

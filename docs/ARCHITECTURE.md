@@ -10,10 +10,13 @@
                     ┌─────────────────────────────┼─────────────────────────────┐
                     ▼                             ▼                             ▼
              VisualizerCanvas              playbackEngine                  React UI
-             (Canvas 2D rAF)               (singleton)                     sidebar
+             (rAF → VisualizerEngine)      (singleton)                     sidebar
                     │                             │
          particles / notes / bg            AudioEngine
          music reactive field              Tone | TinySynth | Spessa SF2
+                    │
+              offlineBake (export)
+              stepped frames + Mediabunny
 ```
 
 ## Playback
@@ -21,30 +24,47 @@
 - **`PlaybackEngine`** (`src/engine/PlaybackEngine.ts`): song, tracks, play/pause/stop/seek, hit callbacks for particles, mute-aware reschedule.
 - **Clock model:** `getTime() = pauseOffset + Tone.Transport.seconds` while playing (after audio ready).
 - **Note schedule:** notes scheduled relative to `fromTime` with transport reset to 0 via `reanchorPlayback`.
-- **Visual hits:** `tickHits()` walks notes by start time; fires `onNoteHit` for particles + impact rail.
+- **Visual hits (live):** `tickHits()` walks notes by start time; fires `onNoteHit` for particles + impact rail.
+- **Visual hits (bake):** `VisualizerEngine` advances a hit cursor by song time with fixed `dt`.
 
 ## Audio backends (`AudioEngine`)
 
 | Backend | When | Notes |
 |---------|------|--------|
-| **Tone** | piano, chiptune, epiano, pad, … | `createToneInstrument` in `instruments.ts` |
-| **TinySynth** | `gm_chip` (q=0), `gm_quality` (q=1) | `webaudio-tinysynth`, `noteOn/Off` w/ AudioContext time |
+| **Tone** | piano, chiptune, epiano, pad, … | `createToneInstrument` in `instruments.ts`; routes via Tone master bus |
+| **TinySynth** | `gm_chip` (q=0), `gm_quality` (q=1) | `webaudio-tinysynth`, `noteOn/Off` |
 | **SF2** | after user loads file | `spessasynth_lib` WorkletSynthesizer; worklet at `/spessasynth_processor.min.js` |
 
 Instrument change mid-play: pause transport → switch → `reanchorPlayback`.
 
 Live notes: `noteOn` / `noteOff` (immediate) - never schedule on transport; safe while a song plays.
 
+### SF2 / native AudioContext
+
+Tone uses **standardized-audio-context** wrappers. Spessa creates a native `AudioWorkletNode`, which requires a real `BaseAudioContext`.
+
+- SF2 uses `getNativeAudioContext()` (unwrap or dedicated native `AudioContext`).
+- SF2 has its own gain + `MediaStreamDestination` for speakers and realtime record merge.
+- Do not pass Tone's wrapped `rawContext` into `WorkletSynthesizer`.
+
+### Master bus / record
+
+- Tone path: instruments → Tone.Gain → master gain → speakers + record stream.
+- SF2 path: native bus → speakers + separate record tracks merged in `getRecordStream()`.
+
 ## Video export
 
 ### Bake (default, smooth)
+
 1. `VisualizerEngine` draws each frame at `time = i/fps` with fixed `dt = 1/fps`.  
 2. Hits/particles advance deterministically from song notes (no wall clock).  
 3. [Mediabunny](https://mediabunny.dev/) `CanvasSource` + WebCodecs → **MP4**.  
-4. Optional audio via `Tone.Offline` (Tone instruments match; GM/SF2 fall back to Soft Piano offline).
+4. Optional audio via `Tone.Offline` (Tone instruments match; GM/SF2 fall back to Soft Piano offline).  
+5. Lazy-loaded chunk (`offlineBake.ts`) so Mediabunny is not in the initial bundle.
 
 ### Realtime (optional)
-1. Lock live canvas to 1920×1080.  
+
+1. Lock live canvas bitmap to 1920×1080.  
 2. `canvas.captureStream` + master-bus audio → `MediaRecorder` (can drop frames under load).
 
 Code: `src/render/VisualizerEngine.ts`, `src/export/offlineBake.ts`, `src/export/VideoExporter.ts`, `src/ui/ExportPanel.tsx`.
@@ -61,11 +81,20 @@ Input thru    ──► midiIO ──► selected MIDIOutput
 ```
 
 - Enable from **Live MIDI** sidebar (user gesture → `requestMIDIAccess` + warm audio).
-- Visualizer merges `getLiveNotes()` into active keyboard keys each frame.
+- Live bars grow from the hit line and scroll up after release (wall clock).
+- Chrome/Edge/Opera desktop; Safari/Firefox lack Web MIDI (UI explains).
 
-## Rendering (`VisualizerCanvas`)
+## Rendering
 
-Single rAF loop (effect with empty deps; reads refs):
+### Live (`VisualizerCanvas`)
+
+- Single rAF loop (empty deps; reads refs).  
+- Delegates paint to **`VisualizerEngine`**.  
+- Optional `exportResolution` / `suspendLiveDraw` during export.
+
+### Engine (`VisualizerEngine`)
+
+Shared by live and bake:
 
 1. Background effects (music energy)  
 2. Music reactive ambient particles  
@@ -80,11 +109,11 @@ Settings come from React props → `settingsRef` each render. Party mode updates
 
 `VisualSettings` in `src/midi/types.ts`:
 
-- Core visuals (scroll, glow, keyboard, hit rail, bg color)  
+- Core visuals (scroll, glow, keyboard height, hit rail, bg color)  
 - `particles: ParticleParams`  
 - `background: BackgroundParams`  
 - `musicReactive: MusicReactiveParams`  
-- `colors: ColorSettings`  
+- `colors: ColorSettings` (includes palette scatter modes)  
 
 Deep-cloned in presets / party / surprise via helpers in `theme/`.
 
@@ -97,7 +126,7 @@ Deep-cloned in presets / party / surprise via helpers in `theme/`.
 ## Scene presets
 
 - Built-ins: `theme/scenePresets.ts` → `BUILTIN_SCENE_PRESETS`  
-- User: `localStorage` key `lumenote-scene-presets-v1`  
+- User: `localStorage` key `lumenote-scene-presets-v1` (migrates legacy `notefall-scene-presets-v1`)  
 - Capture: settings + instrumentId + volume  
 
 ## Data flow: load MIDI
@@ -108,3 +137,8 @@ Deep-cloned in presets / party / surprise via helpers in `theme/`.
 4. UI shows tracks; play schedules audio  
 
 Single-track multi-channel MIDIs may be split by channel in `parseMidi.ts`.
+
+## Studio UI
+
+Sidebar sections: **Scene** · **Audio** · **Look** · **Export** · Shortcuts.  
+Fullscreen: player-only stage; `B` / edge chevron overlays the same sidebar without shrinking the canvas.
