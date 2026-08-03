@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.jpg" alt="Lumenote - multi-track MIDI piano visualizer" width="100%" />
+  <img src="docs/github.png" alt="Lumenote - multi-track MIDI piano visualizer" width="100%" />
 </p>
 
 <p align="center">
