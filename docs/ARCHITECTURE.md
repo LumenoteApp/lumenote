@@ -35,6 +35,20 @@ Instrument change mid-play: pause transport → switch → `reanchorPlayback`.
 
 Live notes: `noteOn` / `noteOff` (immediate) — never schedule on transport; safe while a song plays.
 
+## Video export
+
+### Bake (default, smooth)
+1. `VisualizerEngine` draws each frame at `time = i/fps` with fixed `dt = 1/fps`.  
+2. Hits/particles advance deterministically from song notes (no wall clock).  
+3. [Mediabunny](https://mediabunny.dev/) `CanvasSource` + WebCodecs → **MP4**.  
+4. Optional audio via `Tone.Offline` (Tone instruments match; GM/SF2 fall back to Soft Piano offline).
+
+### Realtime (optional)
+1. Lock live canvas to 1920×1080.  
+2. `canvas.captureStream` + master-bus audio → `MediaRecorder` (can drop frames under load).
+
+Code: `src/render/VisualizerEngine.ts`, `src/export/offlineBake.ts`, `src/export/VideoExporter.ts`, `src/ui/ExportPanel.tsx`.
+
 ## Live MIDI (`MidiIO`)
 
 ```

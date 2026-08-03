@@ -47,6 +47,7 @@ SF2 worklet must be served from public (already there):
 | **Colors** | Modes (track/RGB/pitch/…) + palettes |
 | **Visuals / Particles / Background / Music reactive** | Detailed sliders + per-section randomize |
 | **Fullscreen** | `F` / ⛶ — player-only chrome; **`B`** or edge **‹** opens studio panel as overlay |
+| **Export video** | **Bake** (offline stepped frames, smooth MP4) or realtime MediaRecorder |
 
 ### Shortcuts
 
@@ -105,7 +106,10 @@ src/render/MusicReactiveField.ts
 src/render/BackgroundEffects.ts
 src/render/HitRail.ts
 src/theme/*                   # Presets, randomize, scene presets
-src/ui/*                      # Panels (incl. MidiPanel), home, transport
+src/ui/*                      # Panels (incl. MidiPanel, ExportPanel), home, transport
+src/export/VideoExporter.ts   # Realtime capture helpers
+src/export/offlineBake.ts     # Stepped-frame MP4 bake (Mediabunny)
+src/render/VisualizerEngine.ts # Shared live + bake draw engine
 docs/SESSION_NOTES.md         # This file
 docs/ARCHITECTURE.md
 docs/DEVELOPMENT.md
@@ -121,7 +125,8 @@ Grouped sections with labels; docked in studio, **overlay** in fullscreen (`B` /
 2. **Scene** — presets · Surprise me / party  
 3. **Audio** — Sound · Live MIDI  
 4. **Look** — Colors/tracks · Visuals / reactive / bg / particles  
-5. **Shortcuts**  
+5. **Export** — 1080p realtime video (30/60 fps)  
+6. **Shortcuts**  
 
 Fullscreen: panel slides over the piano (does not shrink the stage).  
 
@@ -129,7 +134,7 @@ Fullscreen: panel slides over the piano (does not shrink the stage).
 
 ## Known limitations / future ideas
 
-- No built-in MP4 export (screen-record fullscreen)  
+- Offline **bake** export (smooth 1080p MP4) + optional realtime capture  
 - Live Web MIDI in/out (Chromium); no browser QWERTY piano yet  
 - Party mode updates React ~30fps (throttled)  
 - SF2 large files can be slow to load first time  
@@ -148,7 +153,7 @@ Fullscreen: panel slides over the piano (does not shrink the stage).
 ## Suggested next tasks (if user continues)
 
 1. GitHub Pages / Vercel deploy + homepage URL on repo  
-2. Built-in video export  
+2. Offline bake: SF2/GM true offline audio (currently Soft Piano fallback)  
 3. On-screen / QWERTY piano (in addition to hardware MIDI)  
 4. Rewrite git history to GitHub noreply email (optional privacy)  
 5. Real screenshots of the app in README  

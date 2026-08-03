@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
 import type { NoteEvent, Song, TrackInfo, VisualSettings } from '../midi/types';
 import { playbackEngine } from '../engine/PlaybackEngine';
-import { buildKeyRects, isBlackKey, pitchToX, whiteKeyWidth } from './keyboardLayout';
-import { ParticleSystem } from './ParticleSystem';
-import { BackgroundEffects } from './BackgroundEffects';
-import { HitRail } from './HitRail';
-import { MusicReactiveField, analyzeMusicEnergy } from './MusicReactiveField';
-import { normalizeColorSettings, resolveNoteColor } from '../theme/colorPresets';
+import { VisualizerEngine } from './VisualizerEngine';
+
+export type ExportResolution = {
+  width: number;
+  height: number;
+};
 
 type Props = {
   song: Song | null;
@@ -14,114 +14,62 @@ type Props = {
   settings: VisualSettings;
   seekTime: number;
   playing: boolean;
+  /** When set, lock canvas bitmap to this size (for video export). CSS still fills parent. */
+  exportResolution?: ExportResolution | null;
+  /** Pause live rAF (used while offline bake owns rendering). */
+  suspendLiveDraw?: boolean;
+  onCanvasReady?: (canvas: HTMLCanvasElement | null) => void;
 };
 
-const DEFAULT_KEYBOARD_H = 200;
-const MIN_KEYBOARD_H = 100;
-const MAX_KEYBOARD_H = 280;
-/** Kept so any stale HMR draw loop that still references KEYBOARD_H won't crash */
-const KEYBOARD_H = DEFAULT_KEYBOARD_H;
-const HIT_LINE_PAD = 10;
-
-function resolveKeyboardH(settings: VisualSettings): number {
-  if (!settings.showKeyboard) return 28;
-  const h = Number(settings.keyboardHeight);
-  if (!Number.isFinite(h)) return KEYBOARD_H;
-  return Math.max(MIN_KEYBOARD_H, Math.min(MAX_KEYBOARD_H, h));
-}
-
-function roundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
-  const radius = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + w, y, x + w, y + h, radius);
-  ctx.arcTo(x + w, y + h, x, y + h, radius);
-  ctx.arcTo(x, y + h, x, y, radius);
-  ctx.arcTo(x, y, x + w, y, radius);
-  ctx.closePath();
-}
-
-function hexAlpha(hex: string, a: number) {
-  const h = hex.replace('#', '');
-  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
-  const n = parseInt(full, 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  return `rgba(${r},${g},${b},${a})`;
-}
-
-export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: Props) {
+export function VisualizerCanvas({
+  song,
+  tracks,
+  settings,
+  seekTime,
+  playing,
+  exportResolution = null,
+  suspendLiveDraw = false,
+  onCanvasReady,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef(new ParticleSystem());
-  const backgroundRef = useRef(new BackgroundEffects());
-  const hitRailRef = useRef(new HitRail());
-  const musicFieldRef = useRef(new MusicReactiveField());
-  const onsetAccRef = useRef(0);
+  const engineRef = useRef(new VisualizerEngine());
   const lastFrameRef = useRef(performance.now());
   const tracksRef = useRef(tracks);
   const settingsRef = useRef(settings);
   const songRef = useRef(song);
   const seekTimeRef = useRef(seekTime);
   const playingRef = useRef(playing);
-  const bgStyleRef = useRef<string>(settings.background.style);
+  const exportResRef = useRef(exportResolution);
+  const suspendRef = useRef(suspendLiveDraw);
+  /** Logical draw size (matches ctx transform space) for hit FX */
+  const viewSizeRef = useRef({ w: 1, h: 1 });
 
   tracksRef.current = tracks;
   settingsRef.current = settings;
   songRef.current = song;
   seekTimeRef.current = seekTime;
   playingRef.current = playing;
+  exportResRef.current = exportResolution;
+  suspendRef.current = suspendLiveDraw;
 
   useEffect(() => {
-    const particles = particlesRef.current;
-    const hitRail = hitRailRef.current;
+    onCanvasReady?.(canvasRef.current);
+    return () => onCanvasReady?.(null);
+  }, [onCanvasReady]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
     playbackEngine.setOnNoteHit((note: NoteEvent) => {
-      const canvas = canvasRef.current;
+      if (suspendRef.current) return;
       const s = settingsRef.current;
-      if (!canvas) return;
-      const track = tracksRef.current.find((t) => t.index === note.trackIndex);
-      // Live MIDI may fire with no song loaded — still show hits
-      if (track && !track.visible) return;
-      const trackColor = track?.color ?? '#4FC3F7';
-      const dpr = window.devicePixelRatio || 1;
-      const w = canvas.width / dpr;
-      const h = canvas.height / dpr;
-      const keyboardH = resolveKeyboardH(s);
-      const hitY = h - keyboardH - HIT_LINE_PAD;
-      const x = pitchToX(note.pitch, w);
-      const color = resolveNoteColor({
-        trackColor,
-        pitch: note.pitch,
-        time: playbackEngine.getTime(),
-        noteStart: note.start,
-        settings: normalizeColorSettings(s.colors),
-      });
-
-      // Accumulate onset energy for music-reactive field (consumed each frame)
-      onsetAccRef.current = Math.min(1.5, onsetAccRef.current + 0.15 + note.velocity * 0.35);
-
-      if (s.showHitRail) {
-        hitRail.hit(x, color, note.velocity);
-      }
-      if (s.particlesEnabled) {
-        particles.spawn(x, hitY, color, note.velocity, s.particles);
-      }
+      const { w, h } = viewSizeRef.current;
+      engine.noteHit(note, w, h, s, tracksRef.current, playbackEngine.getTime());
     });
     return () => playbackEngine.setOnNoteHit(null);
   }, []);
 
   useEffect(() => {
-    particlesRef.current.clear();
-    hitRailRef.current.clear();
-    musicFieldRef.current.clear();
-    onsetAccRef.current = 0;
+    engineRef.current.reset();
   }, [song]);
 
   useEffect(() => {
@@ -136,16 +84,23 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
     const resize = () => {
       const parent = canvas.parentElement;
       if (!parent) return;
-      const dpr = window.devicePixelRatio || 1;
-      const rect = parent.getBoundingClientRect();
-      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // force bg reseed
-      backgroundRef.current = new BackgroundEffects();
-      bgStyleRef.current = '';
+      const exp = exportResRef.current;
+      if (exp && exp.width > 0 && exp.height > 0) {
+        canvas.width = exp.width;
+        canvas.height = exp.height;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      } else {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = parent.getBoundingClientRect();
+        canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+        canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      engineRef.current.reseatBackground();
     };
 
     resize();
@@ -154,295 +109,42 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
 
     const draw = (now: number) => {
       if (!running) return;
+      raf = requestAnimationFrame(draw);
+
+      if (suspendRef.current) {
+        lastFrameRef.current = now;
+        return;
+      }
+
       const dt = Math.min(0.05, (now - lastFrameRef.current) / 1000);
       lastFrameRef.current = now;
 
       const s = settingsRef.current;
-      const particleParams = s.particles;
-      const bgParams = s.background;
       const currentSong = songRef.current;
       const currentTracks = tracksRef.current;
-      const dpr = window.devicePixelRatio || 1;
+      const exp = exportResRef.current;
+      const dpr = exp ? 1 : window.devicePixelRatio || 1;
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
-      const keyboardH = resolveKeyboardH(s);
-      const hitY = h - keyboardH - HIT_LINE_PAD;
-      const pps = s.pixelsPerSecond;
+      viewSizeRef.current = { w, h };
 
       const isPlaying = playingRef.current;
       const time = isPlaying ? playbackEngine.getTime() : seekTimeRef.current;
       if (isPlaying) playbackEngine.tickHits();
 
-      if (bgStyleRef.current !== bgParams.style) {
-        backgroundRef.current.rebuild(bgParams);
-        bgStyleRef.current = bgParams.style;
-      }
-
-      const baseTrackColor = (index: number) =>
-        currentTracks.find((t) => t.index === index)?.color ?? '#fff';
-      const trackVisible = (index: number) =>
-        currentTracks.find((t) => t.index === index)?.visible !== false;
-      const colorSettings = normalizeColorSettings(s.colors);
-      const noteColor = (trackIndex: number, pitch: number, noteStart: number) =>
-        resolveNoteColor({
-          trackColor: baseTrackColor(trackIndex),
-          pitch,
-          time,
-          noteStart,
-          settings: colorSettings,
-        });
-
-      const activeKeys = new Map<number, { color: string; velocity: number }>();
-
-      // Pre-scan active keys for energy (used by bg)
-      if (currentSong) {
-        for (const note of currentSong.notes) {
-          if (!trackVisible(note.trackIndex)) continue;
-          const end = note.start + note.duration;
-          if (note.start <= time && end > time) {
-            const color = noteColor(note.trackIndex, note.pitch, note.start);
-            const prev = activeKeys.get(note.pitch);
-            if (!prev || note.velocity > prev.velocity) {
-              activeKeys.set(note.pitch, { color, velocity: note.velocity });
-            }
-          }
-        }
-      }
-
-      // Live MIDI / keyboard held notes (merge over song keys)
-      const liveHeld = playbackEngine.getLiveNotes();
-      const liveVisual = playbackEngine.getLiveVisualNotes();
-      const liveTrackIdx = currentTracks[0]?.index ?? 0;
-      if (liveHeld.size > 0) {
-        for (const [pitch, live] of liveHeld) {
-          const color = noteColor(liveTrackIdx, pitch, live.wallStart / 1000);
-          const prev = activeKeys.get(pitch);
-          if (!prev || live.velocity > prev.velocity) {
-            activeKeys.set(pitch, { color, velocity: live.velocity });
-          }
-        }
-      }
-
-      const activeList = [...activeKeys.entries()].map(([pitch, info]) => ({
-        pitch,
-        x: pitchToX(pitch, w),
-        color: info.color,
-        velocity: info.velocity,
-      }));
-      const bands = analyzeMusicEnergy(activeList);
-      const onset = onsetAccRef.current;
-      onsetAccRef.current = Math.max(0, onsetAccRef.current - dt * 3.5);
-
-      // Combine held-note energy + recent hits for stronger reactivity
-      const energy = Math.min(
-        1,
-        bands.total * 0.75 + Math.min(1, onset) * 0.45 + musicFieldRef.current.getPulse() * 0.2,
-      );
-
-      // Dynamic palette sample for bg / ambient (follows RGB modes)
-      const colors =
-        colorSettings.mode === 'track'
-          ? currentTracks.filter((t) => t.visible).map((t) => t.color)
-          : [36, 48, 60, 72, 84].map((pitch) =>
-              resolveNoteColor({
-                trackColor: baseTrackColor(0),
-                pitch,
-                time,
-                settings: colorSettings,
-              }),
-            );
-      const bgEnergy = Math.min(
-        1,
-        energy * (0.5 + bgParams.reactive * 0.7) + musicFieldRef.current.getBassKick() * 0.35,
-      );
-      backgroundRef.current.update(dt, bgEnergy, bgParams);
-      backgroundRef.current.draw(ctx, w, h, s.backgroundColor, colors, bgParams);
-
-      // Music-reactive ambient particle animation (behind notes)
-      musicFieldRef.current.resize(w, h, hitY);
-      musicFieldRef.current.update(dt, bands, activeList, onset, s.musicReactive, colors);
-      musicFieldRef.current.draw(ctx, s.musicReactive);
-
-      // Song notes (fall toward hit line) + live notes (grow / scroll upward)
-      const pulse = musicFieldRef.current.getPulse();
-      const bass = musicFieldRef.current.getBassKick();
-      const wallNow = performance.now();
-
-      const drawNoteBar = (
-        pitch: number,
-        velocity: number,
-        color: string,
-        yTop: number,
-        yBottom: number,
-        isActive: boolean,
-      ) => {
-        const noteH = yBottom - yTop;
-        if (noteH < 1) return;
-        if (yTop > hitY + 20 || yBottom < -20) return;
-
-        const keyW = isBlackKey(pitch)
-          ? whiteKeyWidth(w) * 0.55
-          : whiteKeyWidth(w) * 0.88;
-        const xCenter = pitchToX(pitch, w);
-        const reactiveBoost = s.musicReactive.enabled
-          ? 1 + pulse * 0.12 + (isActive ? bass * 0.08 : 0)
-          : 1;
-        const alpha = s.noteOpacity * (0.55 + velocity * 0.45);
-
-        if (s.glowStrength > 0.05) {
-          ctx.shadowColor = hexAlpha(
-            color,
-            0.55 * s.glowStrength * (isActive ? 1 + pulse * 0.4 : 1),
-          );
-          ctx.shadowBlur =
-            18 * s.glowStrength * (isActive ? 1.4 + pulse * 0.6 : 1) * reactiveBoost;
-        } else {
-          ctx.shadowBlur = 0;
-        }
-
-        const drawW = keyW * (isActive ? reactiveBoost : 1);
-        const drawX = xCenter - drawW / 2;
-        const grad = ctx.createLinearGradient(drawX, yTop, drawX, yBottom);
-        grad.addColorStop(0, hexAlpha(color, alpha * 0.75));
-        grad.addColorStop(0.5, hexAlpha(color, alpha));
-        grad.addColorStop(1, hexAlpha(color, alpha * 0.9));
-        ctx.fillStyle = grad;
-        roundedRect(ctx, drawX, yTop, drawW, noteH, 5);
-        ctx.fill();
-
-        if (isActive) {
-          ctx.shadowBlur = 24 * s.glowStrength * (1 + pulse * 0.5);
-          ctx.fillStyle = hexAlpha('#ffffff', 0.35 + pulse * 0.15);
-          roundedRect(ctx, drawX, yBottom - 10, drawW, 10, 4);
-          ctx.fill();
-        }
-      };
-
-      ctx.save();
-      if (currentSong) {
-        const lookAhead = (hitY + 40) / pps + 0.5;
-        const lookBehind = keyboardH / pps + 2;
-
-        for (const note of currentSong.notes) {
-          if (!trackVisible(note.trackIndex)) continue;
-          const end = note.start + note.duration;
-          if (end < time - lookBehind || note.start > time + lookAhead) continue;
-
-          const color = noteColor(note.trackIndex, note.pitch, note.start);
-          const noteH = Math.max(6, note.duration * pps);
-          const yBottom = hitY - (note.start - time) * pps;
-          const yTop = yBottom - noteH;
-          const isActive = note.start <= time && end > time;
-          drawNoteBar(note.pitch, note.velocity, color, yTop, yBottom, isActive);
-        }
-      }
-
-      // Live MIDI: bars grow upward from hit line while held, then scroll up
-      for (const note of liveVisual) {
-        const isHeld = note.wallEnd === null;
-        const durationSec = Math.max(
-          0.03,
-          ((isHeld ? wallNow : note.wallEnd!) - note.wallStart) / 1000,
-        );
-        const releaseAgeSec = isHeld ? 0 : (wallNow - note.wallEnd!) / 1000;
-        const noteH = Math.max(6, durationSec * pps);
-        // Bottom stays on hit rail while held; after release the whole bar rises
-        const yBottom = hitY - releaseAgeSec * pps;
-        const yTop = yBottom - noteH;
-        if (yBottom < -20) continue;
-
-        const color = noteColor(liveTrackIdx, note.pitch, note.wallStart / 1000);
-        drawNoteBar(note.pitch, note.velocity, color, yTop, yBottom, isHeld);
-      }
-      ctx.shadowBlur = 0;
-      ctx.restore();
-
-      // Reactive impact rail (replaces dead white line)
-      hitRailRef.current.update(dt);
-      if (s.showHitRail) {
-        const activeRail = [...activeKeys.entries()].map(([pitch, info]) => ({
-          x: pitchToX(pitch, w),
-          color: info.color,
-          velocity: info.velocity,
-        }));
-        hitRailRef.current.draw(ctx, w, hitY, activeRail, s.hitRailIntensity);
-      }
-
-      // Sustain particles while keys held (song playback or live MIDI)
-      if (s.particlesEnabled && particleParams.sustainEmit > 0 && activeKeys.size > 0) {
-        for (const [pitch, info] of activeKeys) {
-          const x = pitchToX(pitch, w);
-          particlesRef.current.emitSustain(
-            x,
-            hitY,
-            info.color,
-            info.velocity,
-            particleParams,
-            dt,
-          );
-        }
-      }
-
-      if (s.particlesEnabled) {
-        particlesRef.current.update(dt, particleParams);
-        particlesRef.current.draw(ctx, particleParams);
-      }
-
-      // Keyboard
-      if (s.showKeyboard) {
-        const keys = buildKeyRects(w);
-        const ky = h - keyboardH;
-
-        ctx.fillStyle = '#10121a';
-        ctx.fillRect(0, ky, w, keyboardH);
-
-        const edge = ctx.createLinearGradient(0, ky, 0, ky + 8);
-        edge.addColorStop(0, 'rgba(255,255,255,0.08)');
-        edge.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = edge;
-        ctx.fillRect(0, ky, w, 8);
-
-        for (const key of keys) {
-          if (key.isBlack) continue;
-          const pressed = activeKeys.get(key.midi);
-          ctx.fillStyle = pressed ? hexAlpha(pressed.color, 0.88) : '#f2f2f5';
-          ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-          ctx.lineWidth = 1;
-          roundedRect(ctx, key.x + 0.5, ky + 3, key.w - 1, keyboardH - 8, 4);
-          ctx.fill();
-          ctx.stroke();
-          if (pressed) {
-            ctx.fillStyle = hexAlpha(pressed.color, 0.3);
-            ctx.fillRect(key.x, ky, key.w, 5);
-          }
-        }
-        for (const key of keys) {
-          if (!key.isBlack) continue;
-          const pressed = activeKeys.get(key.midi);
-          const bh = keyboardH * 0.62;
-          ctx.fillStyle = pressed ? hexAlpha(pressed.color, 0.95) : '#1a1c24';
-          roundedRect(ctx, key.x, ky + 3, key.w, bh, 3);
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-          ctx.stroke();
-        }
-      }
-
-      if (!currentSong && liveHeld.size === 0 && liveVisual.length === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.45)';
-        ctx.font = '500 18px "Segoe UI", system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Drop a MIDI file or click Open', w / 2, h / 2 - 10);
-        ctx.font = '400 13px "Segoe UI", system-ui, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.28)';
-        ctx.fillText(
-          'Or enable Live MIDI in the sidebar and play a keyboard',
-          w / 2,
-          h / 2 + 16,
-        );
-      }
-
-      raf = requestAnimationFrame(draw);
+      engineRef.current.render(ctx, w, h, {
+        song: currentSong,
+        tracks: currentTracks,
+        settings: s,
+        time,
+        dt,
+        prevTime: time,
+        processSongHits: false,
+        liveHeld: playbackEngine.getLiveNotes(),
+        liveVisual: playbackEngine.getLiveVisualNotes(),
+        wallNow: performance.now(),
+        showEmptyHint: true,
+      });
     };
 
     raf = requestAnimationFrame(draw);
@@ -452,6 +154,32 @@ export function VisualizerCanvas({ song, tracks, settings, seekTime, playing }: 
       ro.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (exportResolution && exportResolution.width > 0) {
+      canvas.width = exportResolution.width;
+      canvas.height = exportResolution.height;
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    } else {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = parent.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    engineRef.current.reseatBackground();
+  }, [exportResolution]);
 
   return <canvas ref={canvasRef} className="visualizer-canvas" />;
 }

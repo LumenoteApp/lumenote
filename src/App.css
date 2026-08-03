@@ -252,6 +252,73 @@
   margin: 0.4rem 0 0 !important;
 }
 
+/* ── Export panel ── */
+.export-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+}
+
+.export-value {
+  color: rgba(232, 234, 239, 0.75);
+  font-size: 0.78rem;
+}
+
+.export-fps {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.export-eta {
+  margin-top: 0.5rem !important;
+}
+
+.export-progress {
+  margin-top: 0.55rem;
+}
+
+.export-progress-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.export-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #4fc3f7, #f48fb1);
+  transition: width 0.2s ease;
+}
+
+.export-actions {
+  margin-top: 0.55rem;
+}
+
+.export-start {
+  width: 100%;
+}
+
+.export-badge {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 6;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: #ff8a80;
+  background: rgba(12, 8, 10, 0.75);
+  border: 1px solid rgba(255, 138, 128, 0.35);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
 /* ── Scene presets ── */
 .scene-save-row {
   display: flex;

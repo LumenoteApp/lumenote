@@ -27,14 +27,55 @@ export class AudioEngine {
   private volume = 0.85; // 0–1
   /** Live held notes: key = `${channel}:${pitch}` */
   private liveHeld = new Set<string>();
+  /** Master bus: instruments → speakers + optional MediaRecorder tap */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private toneMaster: any = null;
+  private masterGain: GainNode | null = null;
+  private recordDest: MediaStreamAudioDestinationNode | null = null;
 
   async init() {
     if (!this.Tone) {
       this.Tone = await import('tone');
     }
     await this.Tone.start();
+    this.ensureMasterBus();
     await this.ensureInstrumentLoaded();
     this.ready = true;
+  }
+
+  /**
+   * Audio stream for MediaRecorder (same bus as speakers).
+   * Call after init().
+   */
+  getRecordStream(): MediaStream | null {
+    if (!this.Tone) return null;
+    this.ensureMasterBus();
+    return this.recordDest?.stream ?? null;
+  }
+
+  private ensureMasterBus() {
+    if (!this.Tone || (this.masterGain && this.recordDest && this.toneMaster)) return;
+    const rawCtx = this.Tone.getContext().rawContext as AudioContext;
+
+    if (!this.masterGain) {
+      this.masterGain = rawCtx.createGain();
+      this.masterGain.gain.value = 1;
+      this.masterGain.connect(rawCtx.destination);
+    }
+    if (!this.recordDest) {
+      this.recordDest = rawCtx.createMediaStreamDestination();
+      this.masterGain.connect(this.recordDest);
+    }
+    if (!this.toneMaster) {
+      // Tone instruments connect here; then into the raw master bus
+      this.toneMaster = new this.Tone.Gain(1);
+      try {
+        this.toneMaster.connect(this.masterGain);
+      } catch {
+        // Fallback: speakers only via Tone destination
+        this.toneMaster.toDestination();
+      }
+    }
   }
 
   isReady() {
@@ -116,6 +157,7 @@ export class AudioEngine {
   }
 
   private async ensureInstrumentLoaded() {
+    this.ensureMasterBus();
     const backend = this.getBackend();
     if (backend === 'tone') {
       this.disposeToneSynth();
@@ -125,7 +167,7 @@ export class AudioEngine {
         this.instrumentId === 'gm_quality'
           ? 'piano'
           : (this.instrumentId as BuiltinInstrumentId);
-      this.toneSynth = createToneInstrument(this.Tone, id);
+      this.toneSynth = createToneInstrument(this.Tone, id, this.toneMaster);
     } else if (backend === 'tinysynth') {
       await this.ensureTinySynth();
       const q = this.instrumentId === 'gm_chip' ? 0 : 1;
@@ -140,14 +182,16 @@ export class AudioEngine {
 
   private async ensureTinySynth() {
     if (this.tinySynth) return;
+    this.ensureMasterBus();
     // CJS module
     const mod = await import('webaudio-tinysynth');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Ctor = (mod as any).default ?? mod;
-    const rawCtx = this.Tone.getContext().rawContext;
+    const rawCtx = this.Tone.getContext().rawContext as AudioContext;
     this.tinySynth = new Ctor({ quality: 1, useReverb: 1, voices: 48 });
     if (this.tinySynth.setAudioContext) {
-      this.tinySynth.setAudioContext(rawCtx);
+      // Route through master bus so captureStream includes audio
+      this.tinySynth.setAudioContext(rawCtx, this.masterGain ?? undefined);
     }
     this.tinySynth.setMasterVol?.(this.volume);
   }
@@ -155,6 +199,7 @@ export class AudioEngine {
   private async ensureSf2Synth() {
     if (!this.sf2Buffer) throw new Error('No SF2 loaded');
     if (this.sf2Synth) return;
+    this.ensureMasterBus();
 
     const rawCtx = this.Tone.getContext().rawContext as AudioContext;
     // Worklet must be served from same origin
@@ -165,7 +210,13 @@ export class AudioEngine {
     const synth = new WorkletSynthesizer(rawCtx);
     await synth.soundBankManager.addSoundBank(this.sf2Buffer, 'main');
     await synth.isReady;
-    // Connect to destination if needed — WorkletSynthesizer usually auto-connects
+    // Prefer master bus for recording; fall back to default destination
+    try {
+      synth.disconnect?.();
+      if (this.masterGain) synth.connect(this.masterGain);
+    } catch {
+      /* keep default routing */
+    }
     this.sf2Synth = synth;
   }
 

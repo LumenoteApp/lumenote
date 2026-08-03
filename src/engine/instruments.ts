@@ -107,10 +107,18 @@ export function getInstrumentInfo(id: InstrumentId): InstrumentInfo {
 
 /**
  * Build a Tone.js polyphonic instrument for a builtin id.
- * Caller owns dispose().
+ * Caller owns dispose(). Pass `output` (Tone node or AudioNode) to route
+ * through a master bus for recording; otherwise connects to Destination.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createToneInstrument(Tone: any, id: BuiltinInstrumentId): any {
+function routeOut(synth: any, output?: any) {
+  if (output) synth.connect(output);
+  else synth.toDestination();
+  return synth;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createToneInstrument(Tone: any, id: BuiltinInstrumentId, output?: any): any {
   const vol = -8;
 
   switch (id) {
@@ -118,19 +126,19 @@ export function createToneInstrument(Tone: any, id: BuiltinInstrumentId): any {
       const s = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'square' },
         envelope: { attack: 0.001, decay: 0.12, sustain: 0.35, release: 0.08 },
-      }).toDestination();
+      });
       s.maxPolyphony = 48;
       s.volume.value = vol - 2;
-      return s;
+      return routeOut(s, output);
     }
     case 'chip_lead': {
       const s = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'pulse', width: 0.25 },
         envelope: { attack: 0.001, decay: 0.18, sustain: 0.2, release: 0.06 },
-      }).toDestination();
+      });
       s.maxPolyphony = 32;
       s.volume.value = vol - 1;
-      return s;
+      return routeOut(s, output);
     }
     case 'epiano': {
       const s = new Tone.PolySynth(Tone.FMSynth, {
@@ -140,38 +148,38 @@ export function createToneInstrument(Tone: any, id: BuiltinInstrumentId): any {
         envelope: { attack: 0.01, decay: 0.4, sustain: 0.2, release: 0.8 },
         modulation: { type: 'square' },
         modulationEnvelope: { attack: 0.002, decay: 0.3, sustain: 0.05, release: 0.4 },
-      }).toDestination();
+      });
       s.maxPolyphony = 32;
       s.volume.value = vol - 4;
-      return s;
+      return routeOut(s, output);
     }
     case 'organ': {
       const s = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'sine4' },
         envelope: { attack: 0.02, decay: 0.1, sustain: 0.9, release: 0.15 },
-      }).toDestination();
+      });
       s.maxPolyphony = 48;
       s.volume.value = vol;
-      return s;
+      return routeOut(s, output);
     }
     case 'pad': {
       const s = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'triangle' },
         envelope: { attack: 0.4, decay: 0.3, sustain: 0.85, release: 1.8 },
-      }).toDestination();
+      });
       s.maxPolyphony = 32;
       s.volume.value = vol - 4;
-      return s;
+      return routeOut(s, output);
     }
     case 'pluck': {
       const s = new Tone.PolySynth(Tone.PluckSynth, {
         attackNoise: 1,
         dampening: 4000,
         resonance: 0.85,
-      }).toDestination();
+      });
       s.maxPolyphony = 32;
       s.volume.value = vol;
-      return s;
+      return routeOut(s, output);
     }
     case 'bass': {
       const s = new Tone.PolySynth(Tone.MonoSynth, {
@@ -186,29 +194,29 @@ export function createToneInstrument(Tone: any, id: BuiltinInstrumentId): any {
           baseFrequency: 120,
           octaves: 3,
         },
-      }).toDestination();
+      });
       s.maxPolyphony = 8;
       s.volume.value = vol;
-      return s;
+      return routeOut(s, output);
     }
     case 'strings': {
       const s = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'fatsawtooth', count: 3, spread: 12 },
         envelope: { attack: 0.25, decay: 0.2, sustain: 0.7, release: 1.2 },
-      }).toDestination();
+      });
       s.maxPolyphony = 28;
       s.volume.value = vol - 6;
-      return s;
+      return routeOut(s, output);
     }
     case 'piano':
     default: {
       const s = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'triangle8' },
         envelope: { attack: 0.008, decay: 0.35, sustain: 0.25, release: 1.1 },
-      }).toDestination();
+      });
       s.maxPolyphony = 64;
       s.volume.value = vol;
-      return s;
+      return routeOut(s, output);
     }
   }
 }

@@ -28,10 +28,24 @@ import { HomePage } from './ui/HomePage';
 import { SoundPanel } from './ui/SoundPanel';
 import { MidiPanel } from './ui/MidiPanel';
 import { ScenePresetPanel } from './ui/ScenePresetPanel';
+import { ExportPanel } from './ui/ExportPanel';
 import type { InstrumentId } from './engine/instruments';
 import type { ScenePreset } from './theme/scenePresets';
 import { hydrateSceneData } from './theme/scenePresets';
 import { midiIO } from './engine/MidiIO';
+import {
+  DEFAULT_EXPORT_SETTINGS,
+  VideoExporter,
+  canBakeOffline,
+  downloadBlob,
+  exportExtension,
+  pickRecorderMime,
+  sanitizeFilename,
+  sleep,
+  waitForPlaybackIdle,
+  type ExportProgress,
+  type ExportSettings,
+} from './export/VideoExporter';
 import './App.css';
 
 function formatTime(sec: number) {
@@ -83,13 +97,34 @@ export default function App() {
   const [sf2Name, setSf2Name] = useState<string | null>(null);
   const [volume, setVolume] = useState(0.85);
   const [activeScenePresetId, setActiveScenePresetId] = useState<string | null>(null);
+  const [exportSettings, setExportSettings] = useState<ExportSettings>({
+    ...DEFAULT_EXPORT_SETTINGS,
+  });
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportProgress, setExportProgress] = useState<ExportProgress>({
+    phase: 'idle',
+    elapsed: 0,
+    duration: 0,
+  });
+  const [exportResolution, setExportResolution] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [suspendLiveDraw, setSuspendLiveDraw] = useState(false);
 
   const settingsRef = useRef(settings);
   const randomizerRef = useRef(randomizer);
   const tracksRef = useRef(tracks);
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const exporterRef = useRef<VideoExporter | null>(null);
+  const exportCancelRef = useRef(false);
   settingsRef.current = settings;
   randomizerRef.current = randomizer;
   tracksRef.current = tracks;
+
+  const onCanvasReady = useCallback((c: HTMLCanvasElement | null) => {
+    canvasElRef.current = c;
+  }, []);
 
   // Party mode dance state
   const partyFromRef = useRef<VisualSettings>(cloneSettings(settings));
@@ -448,6 +483,264 @@ export default function App() {
     [loadFile],
   );
 
+  const cancelExport = useCallback(() => {
+    exportCancelRef.current = true;
+    try {
+      exporterRef.current?.cancel();
+    } catch {
+      /* ignore */
+    }
+    exporterRef.current = null;
+    playbackEngine.pause();
+    setSuspendLiveDraw(false);
+    setExportResolution(null);
+    setExportBusy(false);
+    setExportProgress({
+      phase: 'cancelled',
+      elapsed: 0,
+      duration: 0,
+      message: 'Export cancelled',
+    });
+  }, []);
+
+  const startExport = useCallback(async () => {
+    const currentSong = playbackEngine.getSong();
+    if (!currentSong) {
+      setError('Load a MIDI file before exporting');
+      return;
+    }
+
+    const { width, height, fps, includeAudio, mode } = exportSettings;
+
+    if (mode === 'bake' && !canBakeOffline()) {
+      setError('Smooth bake needs WebCodecs (Chrome or Edge)');
+      return;
+    }
+    if (mode === 'realtime' && !pickRecorderMime()) {
+      setError('Realtime export needs MediaRecorder (try Chrome or Edge)');
+      return;
+    }
+
+    exportCancelRef.current = false;
+    setExportBusy(true);
+    setError(null);
+    setRandomizer((r) => ({ ...r, partyMode: false }));
+    playbackEngine.pause();
+
+    // ── Offline bake (smooth, no dropped frames) ──
+    if (mode === 'bake') {
+      setSuspendLiveDraw(true);
+      setExportProgress({
+        phase: 'preparing',
+        elapsed: 0,
+        duration: currentSong.duration,
+        message: 'Starting offline bake…',
+      });
+      try {
+        // Lazy-load mediabunny encoder stack
+        const { bakeOfflineVideo } = await import('./export/offlineBake');
+        const blob = await bakeOfflineVideo({
+          song: currentSong,
+          tracks: playbackEngine.getTracks(),
+          settings: settingsRef.current,
+          instrumentId: playbackEngine.audio.getInstrumentId(),
+          volume: playbackEngine.audio.getVolume(),
+          width,
+          height,
+          fps,
+          includeAudio,
+          onProgress: setExportProgress,
+          isCancelled: () => exportCancelRef.current,
+        });
+
+        if (exportCancelRef.current) {
+          setExportProgress({
+            phase: 'cancelled',
+            elapsed: 0,
+            duration: 0,
+            message: 'Export cancelled',
+          });
+          return;
+        }
+
+        const fname = `${sanitizeFilename(currentSong.name)}-lumenote-${fps}fps-bake.mp4`;
+        downloadBlob(blob, fname);
+        setExportProgress({
+          phase: 'done',
+          elapsed: currentSong.duration,
+          duration: currentSong.duration,
+          message: `Saved ${fname}`,
+        });
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : 'Bake failed';
+        if (msg === 'cancelled') {
+          setExportProgress({
+            phase: 'cancelled',
+            elapsed: 0,
+            duration: 0,
+            message: 'Export cancelled',
+          });
+        } else {
+          setExportProgress({
+            phase: 'error',
+            elapsed: 0,
+            duration: 0,
+            message: msg,
+          });
+          setError(msg);
+        }
+      } finally {
+        setSuspendLiveDraw(false);
+        setExportResolution(null);
+        setExportBusy(false);
+      }
+      return;
+    }
+
+    // ── Realtime MediaRecorder capture ──
+    setExportProgress({
+      phase: 'preparing',
+      elapsed: 0,
+      duration: currentSong.duration,
+      message: 'Preparing 1080p canvas…',
+    });
+    setExportResolution({ width, height });
+    await sleep(120);
+    if (exportCancelRef.current) {
+      setExportBusy(false);
+      setExportResolution(null);
+      return;
+    }
+
+    const canvas = canvasElRef.current;
+    if (!canvas) {
+      setExportBusy(false);
+      setExportResolution(null);
+      setExportProgress({
+        phase: 'error',
+        elapsed: 0,
+        duration: 0,
+        message: 'Visualizer canvas not ready',
+      });
+      return;
+    }
+
+    try {
+      await playbackEngine.audio.init();
+      if (exportCancelRef.current) return;
+
+      playbackEngine.stop();
+      await sleep(40);
+
+      const exporter = new VideoExporter();
+      exporterRef.current = exporter;
+      const audioStream = includeAudio ? playbackEngine.audio.getRecordStream() : null;
+
+      exporter.start({
+        canvas,
+        audioStream,
+        fps,
+        width,
+        height,
+        includeAudio,
+      });
+
+      setExportProgress({
+        phase: 'recording',
+        elapsed: 0,
+        duration: currentSong.duration,
+        message: 'Recording…',
+      });
+
+      await playbackEngine.play();
+      if (exportCancelRef.current) {
+        exporter.cancel();
+        return;
+      }
+
+      const progressTimer = window.setInterval(() => {
+        if (exportCancelRef.current) return;
+        setExportProgress((p) => ({
+          ...p,
+          phase: 'recording',
+          elapsed: playbackEngine.getTime(),
+          duration: playbackEngine.getDuration(),
+          message: 'Recording…',
+        }));
+      }, 200);
+
+      await waitForPlaybackIdle(
+        () => playbackEngine.getState(),
+        (fn) => playbackEngine.subscribe(fn),
+      );
+      window.clearInterval(progressTimer);
+
+      if (exportCancelRef.current) {
+        exporter.cancel();
+        setExportResolution(null);
+        setExportBusy(false);
+        return;
+      }
+
+      setExportProgress({
+        phase: 'finalizing',
+        elapsed: currentSong.duration,
+        duration: currentSong.duration,
+        message: 'Finalizing…',
+      });
+      await sleep(600);
+
+      const blob = await exporter.stop();
+      exporterRef.current = null;
+
+      if (exportCancelRef.current || blob.size < 64) {
+        setExportProgress({
+          phase: exportCancelRef.current ? 'cancelled' : 'error',
+          elapsed: 0,
+          duration: 0,
+          message: exportCancelRef.current
+            ? 'Export cancelled'
+            : 'Recording produced an empty file',
+        });
+        setExportResolution(null);
+        setExportBusy(false);
+        return;
+      }
+
+      const mime = blob.type || pickRecorderMime();
+      const ext = exportExtension(mime);
+      const fname = `${sanitizeFilename(currentSong.name)}-lumenote-${fps}fps.${ext}`;
+      downloadBlob(blob, fname);
+
+      setExportProgress({
+        phase: 'done',
+        elapsed: currentSong.duration,
+        duration: currentSong.duration,
+        message: `Saved ${fname}`,
+      });
+    } catch (e) {
+      console.error(e);
+      try {
+        exporterRef.current?.cancel();
+      } catch {
+        /* ignore */
+      }
+      exporterRef.current = null;
+      setExportProgress({
+        phase: 'error',
+        elapsed: 0,
+        duration: 0,
+        message: e instanceof Error ? e.message : 'Export failed',
+      });
+      setError(e instanceof Error ? e.message : 'Export failed');
+    } finally {
+      setExportResolution(null);
+      setExportBusy(false);
+      exporterRef.current = null;
+    }
+  }, [exportSettings]);
+
   const loadScenePreset = useCallback(
     async (preset: ScenePreset) => {
       const data = hydrateSceneData(preset);
@@ -548,12 +841,21 @@ export default function App() {
                 🎉 Party
               </div>
             )}
+            {exportBusy && (
+              <div className="export-badge" title="Exporting video">
+                {exportSettings.mode === 'bake' ? '◎ BAKE' : '● REC'}{' '}
+                {exportSettings.width}×{exportSettings.height}@{exportSettings.fps}
+              </div>
+            )}
             <VisualizerCanvas
               song={song}
               tracks={tracks}
               settings={settings}
               seekTime={currentTime}
               playing={playing}
+              exportResolution={exportResolution}
+              suspendLiveDraw={suspendLiveDraw}
+              onCanvasReady={onCanvasReady}
             />
 
             {playerOnly && (
@@ -752,6 +1054,20 @@ export default function App() {
                 onChange={(next) => {
                   applySettings(next, settings.colors.paletteId);
                 }}
+              />
+            </div>
+
+            <div className="sidebar-section">
+              <p className="sidebar-section-label">Export</p>
+              <ExportPanel
+                hasSong={!!song}
+                duration={song?.duration ?? 0}
+                settings={exportSettings}
+                progress={exportProgress}
+                busy={exportBusy}
+                onChange={setExportSettings}
+                onStart={() => void startExport()}
+                onCancel={cancelExport}
               />
             </div>
 

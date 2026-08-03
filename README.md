@@ -144,7 +144,8 @@ public/
 
 ## 🗺️ Roadmap ideas
 
-- [ ] Built-in HD video export  
+- [x] Offline bake export (smooth 1080p 30/60 MP4, WebCodecs)  
+- [x] Realtime HD video capture (MediaRecorder fallback)  
 - [x] Live Web MIDI keyboard input + MIDI out  
 - [ ] More stock scene lookbooks  
 - [ ] Optional background image / video layers  
