@@ -39,9 +39,9 @@ export type CategoryFlags = Record<RandomCategory, boolean>;
 export type RandomizerConfig = {
   categories: CategoryFlags;
   partyMode: boolean;
-  /** How fast params dance (0.25–2) */
+  /** How fast params dance (0.25-2) */
   danceSpeed: number;
-  /** How often palette/mode/style flip while partying (0.2–1.5) */
+  /** How often palette/mode/style flip while partying (0.2-1.5) */
   colorSwitchRate: number;
 };
 
@@ -104,7 +104,7 @@ export function randomizeContinuousTargets(
 
   if (cats.visuals) {
     const v = randomizeVisuals();
-    // Keep booleans stable while dancing — only slide numbers
+    // Keep booleans stable while dancing - only slide numbers
     next = {
       ...next,
       pixelsPerSecond: v.pixelsPerSecond,
@@ -333,7 +333,7 @@ export function lerpSettings(
       background: {
         ...lerpObj(from.background, to.background, e, BG_NUM_KEYS),
         enabled: true,
-        style: to.background.style, // discrete — already set on target flip
+        style: to.background.style, // discrete - already set on target flip
       },
     };
   }

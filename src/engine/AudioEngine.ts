@@ -24,7 +24,7 @@ export class AudioEngine {
   private instrumentId: InstrumentId = 'piano';
   private sf2Name: string | null = null;
   private sf2Buffer: ArrayBuffer | null = null;
-  private volume = 0.85; // 0–1
+  private volume = 0.85; // 0-1
   /** Live held notes: key = `${channel}:${pitch}` */
   private liveHeld = new Set<string>();
   /** Master bus: instruments → speakers + optional MediaRecorder tap */
@@ -32,6 +32,14 @@ export class AudioEngine {
   private toneMaster: any = null;
   private masterGain: GainNode | null = null;
   private recordDest: MediaStreamAudioDestinationNode | null = null;
+  /**
+   * Native AudioContext for SpessaSynth worklets.
+   * Tone uses standardized-audio-context wrappers; native AudioWorkletNode
+   * rejects those (not instanceof BaseAudioContext).
+   */
+  private nativeCtx: AudioContext | null = null;
+  private sf2Gain: GainNode | null = null;
+  private sf2RecordDest: MediaStreamAudioDestinationNode | null = null;
 
   async init() {
     if (!this.Tone) {
@@ -39,31 +47,89 @@ export class AudioEngine {
     }
     await this.Tone.start();
     this.ensureMasterBus();
+    await this.ensureNativeContextRunning();
     await this.ensureInstrumentLoaded();
     this.ready = true;
   }
 
   /**
    * Audio stream for MediaRecorder (same bus as speakers).
-   * Call after init().
+   * Merges Tone master bus + native SF2 bus when both exist.
    */
   getRecordStream(): MediaStream | null {
     if (!this.Tone) return null;
     this.ensureMasterBus();
-    return this.recordDest?.stream ?? null;
+    const tracks: MediaStreamTrack[] = [];
+    if (this.recordDest) tracks.push(...this.recordDest.stream.getAudioTracks());
+    if (this.sf2RecordDest) tracks.push(...this.sf2RecordDest.stream.getAudioTracks());
+    if (tracks.length === 0) return this.recordDest?.stream ?? null;
+    return new MediaStream(tracks);
+  }
+
+  /**
+   * Resolve a real browser AudioContext suitable for AudioWorkletNode.
+   * Tone's rawContext is often a standardized-audio-context wrapper.
+   */
+  private getNativeAudioContext(): AudioContext {
+    if (this.nativeCtx && this.nativeCtx.state !== 'closed') {
+      return this.nativeCtx;
+    }
+
+    const raw = this.Tone?.getContext?.()?.rawContext as
+      | AudioContext
+      | (AudioContext & { destination?: { _nativeAudioNode?: AudioNode } })
+      | null
+      | undefined;
+
+    // Already a true native context
+    if (raw && typeof AudioContext !== 'undefined' && raw instanceof AudioContext) {
+      this.nativeCtx = raw;
+      return raw;
+    }
+
+    // standardized-audio-context: unwrap via destination's native node
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dest = (raw as any)?.destination;
+    const nativeNode =
+      dest?._nativeAudioNode ?? dest?._nativeNode ?? dest?.__native ?? null;
+    const fromDest = nativeNode?.context as AudioContext | undefined;
+    if (fromDest && typeof AudioContext !== 'undefined' && fromDest instanceof AudioContext) {
+      this.nativeCtx = fromDest;
+      return fromDest;
+    }
+
+    // Last resort: dedicated native context (speakers still work; separate graph)
+    const AC =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) throw new Error('Web Audio is not available in this browser');
+    this.nativeCtx = new AC();
+    return this.nativeCtx;
+  }
+
+  private async ensureNativeContextRunning() {
+    const ctx = this.getNativeAudioContext();
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch {
+        /* autoplay policy - will retry on user gesture */
+      }
+    }
   }
 
   private ensureMasterBus() {
     if (!this.Tone || (this.masterGain && this.recordDest && this.toneMaster)) return;
-    const rawCtx = this.Tone.getContext().rawContext as AudioContext;
+    // Tone graph uses its (possibly wrapped) context
+    const toneCtx = this.Tone.getContext().rawContext as AudioContext;
 
     if (!this.masterGain) {
-      this.masterGain = rawCtx.createGain();
+      this.masterGain = toneCtx.createGain();
       this.masterGain.gain.value = 1;
-      this.masterGain.connect(rawCtx.destination);
+      this.masterGain.connect(toneCtx.destination);
     }
     if (!this.recordDest) {
-      this.recordDest = rawCtx.createMediaStreamDestination();
+      this.recordDest = toneCtx.createMediaStreamDestination();
       this.masterGain.connect(this.recordDest);
     }
     if (!this.toneMaster) {
@@ -75,6 +141,19 @@ export class AudioEngine {
         // Fallback: speakers only via Tone destination
         this.toneMaster.toDestination();
       }
+    }
+  }
+
+  /** Native-side bus for SF2 worklet → speakers + record tap */
+  private ensureSf2Bus(native: AudioContext) {
+    if (!this.sf2Gain) {
+      this.sf2Gain = native.createGain();
+      this.sf2Gain.gain.value = 1;
+      this.sf2Gain.connect(native.destination);
+    }
+    if (!this.sf2RecordDest) {
+      this.sf2RecordDest = native.createMediaStreamDestination();
+      this.sf2Gain.connect(this.sf2RecordDest);
     }
   }
 
@@ -107,7 +186,7 @@ export class AudioEngine {
     const db = this.volume <= 0.001 ? -60 : 20 * Math.log10(this.volume) - 6;
     if (this.toneSynth?.volume) this.toneSynth.volume.value = db;
     if (this.tinySynth?.setMasterVol) this.tinySynth.setMasterVol(this.volume);
-    // SF2 volume via gain if we stored one — Spessa uses internal levels
+    // SF2 volume via gain if we stored one - Spessa uses internal levels
   }
 
   async setInstrument(id: InstrumentId) {
@@ -133,12 +212,16 @@ export class AudioEngine {
       }
       this.sf2Synth = null;
     }
-    if (this.Tone) {
-      await this.ensureSf2Synth();
-      this.instrumentId = 'sf2';
-    } else {
-      this.instrumentId = 'sf2';
+    // Always ensure Tone + native context are running (user gesture path)
+    if (!this.Tone) {
+      this.Tone = await import('tone');
     }
+    await this.Tone.start();
+    this.ensureMasterBus();
+    await this.ensureNativeContextRunning();
+    await this.ensureSf2Synth();
+    this.instrumentId = 'sf2';
+    this.ready = true;
   }
 
   private getBackend() {
@@ -200,22 +283,30 @@ export class AudioEngine {
     if (!this.sf2Buffer) throw new Error('No SF2 loaded');
     if (this.sf2Synth) return;
     this.ensureMasterBus();
+    await this.ensureNativeContextRunning();
 
-    const rawCtx = this.Tone.getContext().rawContext as AudioContext;
-    // Worklet must be served from same origin
+    // Must be a real BaseAudioContext - Tone's wrapper breaks AudioWorkletNode
+    const native = this.getNativeAudioContext();
+    this.ensureSf2Bus(native);
+
     const workletUrl = `${import.meta.env.BASE_URL}spessasynth_processor.min.js`;
-    await rawCtx.audioWorklet.addModule(workletUrl);
+    try {
+      await native.audioWorklet.addModule(workletUrl);
+    } catch (e) {
+      // Already registered from a previous load is OK
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/already|InvalidStateError/i.test(msg)) throw e;
+    }
 
     const { WorkletSynthesizer } = await import('spessasynth_lib');
-    const synth = new WorkletSynthesizer(rawCtx);
+    const synth = new WorkletSynthesizer(native);
     await synth.soundBankManager.addSoundBank(this.sf2Buffer, 'main');
     await synth.isReady;
-    // Prefer master bus for recording; fall back to default destination
     try {
       synth.disconnect?.();
-      if (this.masterGain) synth.connect(this.masterGain);
+      if (this.sf2Gain) synth.connect(this.sf2Gain);
     } catch {
-      /* keep default routing */
+      /* keep default routing to native destination */
     }
     this.sf2Synth = synth;
   }
@@ -251,7 +342,7 @@ export class AudioEngine {
 
   /**
    * Immediate note-on for live MIDI / on-screen keyboard.
-   * Velocity is 0–1. Does not touch the transport schedule.
+   * Velocity is 0-1. Does not touch the transport schedule.
    */
   noteOn(pitch: number, velocity: number, channel = 0) {
     if (!this.Tone || !this.ready) return;

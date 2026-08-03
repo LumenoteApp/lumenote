@@ -31,13 +31,13 @@ export type Song = {
   tempos: TempoEvent[];
 };
 
-/** Full particle look — driven by presets or manual sliders */
+/** Full particle look - driven by presets or manual sliders */
 export type ParticleParams = {
   /** Spawn count multiplier */
   density: number;
   /** Base particle radius */
   size: number;
-  /** Random size spread (0–1) */
+  /** Random size spread (0-1) */
   sizeVariance: number;
   /** Launch speed */
   speed: number;
@@ -45,7 +45,7 @@ export type ParticleParams = {
   spread: number;
   /** Gravity (positive pulls down; negative floats up) */
   gravity: number;
-  /** Air resistance 0–1 */
+  /** Air resistance 0-1 */
   drag: number;
   /** Lifetime in seconds */
   lifetime: number;
@@ -78,15 +78,15 @@ export type BackgroundParams = {
   intensity: number;
   /** Drift / motion amount */
   parallax: number;
-  /** Star density 0–1 */
+  /** Star density 0-1 */
   stars: number;
-  /** Soft color orb count 0–1 */
+  /** Soft color orb count 0-1 */
   orbs: number;
-  /** Aurora wave amount 0–1 */
+  /** Aurora wave amount 0-1 */
   waves: number;
-  /** Vertical light beams 0–1 */
+  /** Vertical light beams 0-1 */
   beams: number;
-  /** How much notes pump the background 0–1 */
+  /** How much notes pump the background 0-1 */
   reactive: number;
 };
 

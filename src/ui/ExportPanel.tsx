@@ -55,7 +55,7 @@ export function ExportPanel({
       <h2>Export video</h2>
       <p className="muted small">
         {settings.mode === 'bake'
-          ? 'Offline bake: every frame is computed at exact fps — smooth 1080p, no dropped frames.'
+          ? 'Offline bake: every frame is computed at exact fps - smooth 1080p, no dropped frames.'
           : 'Realtime capture: plays the song live (may drop frames if the PC is busy).'}
       </p>
 

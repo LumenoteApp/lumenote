@@ -1,5 +1,5 @@
 /**
- * Offline stepped-frame video bake — every frame is drawn at fixed dt (1/fps).
+ * Offline stepped-frame video bake - every frame is drawn at fixed dt (1/fps).
  * No realtime capture, so no dropped frames from machine load.
  */
 import {
@@ -156,7 +156,7 @@ function yieldToUi() {
 }
 
 /**
- * Bake a full MP4 offline — stepped frames at exact fps (smooth, no drops).
+ * Bake a full MP4 offline - stepped frames at exact fps (smooth, no drops).
  */
 export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
   if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') {

@@ -33,7 +33,7 @@
 
 Instrument change mid-play: pause transport → switch → `reanchorPlayback`.
 
-Live notes: `noteOn` / `noteOff` (immediate) — never schedule on transport; safe while a song plays.
+Live notes: `noteOn` / `noteOff` (immediate) - never schedule on transport; safe while a song plays.
 
 ## Video export
 
@@ -90,7 +90,7 @@ Deep-cloned in presets / party / surprise via helpers in `theme/`.
 
 ## Party / Surprise
 
-- **Surprise:** `randomizeSelected(settings, categories)` — hard jump.  
+- **Surprise:** `randomizeSelected(settings, categories)` - hard jump.  
 - **Party:** lerp from→to continuous params; occasional discrete flips (palette/mode/bg style).  
   Implementation lives in `App.tsx` + `theme/randomizerConfig.ts` + `theme/randomize.ts`.
 

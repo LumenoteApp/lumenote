@@ -25,7 +25,7 @@ export function TrackPanel({ tracks, colors: colorsProp, onTracksChange, onColor
   const colors = normalizeColorSettings(colorsProp);
 
   const applyPalette = (paletteId: string) => {
-    // Single-track (or no track) + Per track only shows one solid color —
+    // Single-track (or no track) + Per track only shows one solid color -
     // auto-switch to Palette scatter so all swatches appear on notes.
     const next =
       colors.mode === 'track' && tracks.length <= 1
@@ -156,7 +156,7 @@ export function TrackPanel({ tracks, colors: colorsProp, onTracksChange, onColor
         {colors.mode === 'track'
           ? 'Per track mode: one solid color per track (first swatch if only one track).'
           : colors.mode === 'palette' || colors.mode === 'palette_wave'
-            ? 'Active — these colors are scattered across notes.'
+            ? 'Active - these colors are scattered across notes.'
             : 'Used as track base / blend color. Pick Palette mode to scatter all swatches.'}
       </p>
       <div className="preset-grid">
@@ -236,7 +236,7 @@ export function TrackPanel({ tracks, colors: colorsProp, onTracksChange, onColor
                   title={t.visible ? 'Hide' : 'Show'}
                   onClick={() => update(t.index, { visible: !t.visible })}
                 >
-                  {t.visible ? '👁' : '–'}
+                  {t.visible ? '👁' : '-'}
                 </button>
                 <button
                   type="button"

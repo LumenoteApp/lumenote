@@ -178,7 +178,7 @@ export default function App() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Party mode loop — smooth sliding params
+  // Party mode loop - smooth sliding params
   useEffect(() => {
     if (!randomizer.partyMode) return;
 

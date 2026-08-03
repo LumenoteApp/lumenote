@@ -60,7 +60,7 @@ export type FrameInput = {
   /** Fixed or wall dt */
   dt: number;
   /**
-   * Previous frame song time — used in bake mode to fire hits for notes
+   * Previous frame song time - used in bake mode to fire hits for notes
    * that started in (prevTime, time].
    */
   prevTime: number;

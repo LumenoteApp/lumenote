@@ -39,7 +39,7 @@ function clamp01(v: number) {
 
 /**
  * Atmospheric background: stars, soft orbs, aurora bands, light beams.
- * `energy` (0–1) is musical activity so the scene reacts to notes.
+ * `energy` (0-1) is musical activity so the scene reacts to notes.
  */
 export class BackgroundEffects {
   private stars: Star[] = [];

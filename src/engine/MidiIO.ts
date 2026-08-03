@@ -13,9 +13,9 @@ export type MidiPortInfo = {
 export type MidiNoteMessage = {
   type: 'noteon' | 'noteoff';
   pitch: number;
-  velocity: number; // 0–1
-  channel: number; // 0–15
-  rawVelocity: number; // 0–127
+  velocity: number; // 0-1
+  channel: number; // 0-15
+  rawVelocity: number; // 0-127
 };
 
 type Listener = () => void;
@@ -174,7 +174,7 @@ export class MidiIO {
       this.error =
         e instanceof Error
           ? e.message
-          : 'MIDI access denied — check browser permissions.';
+          : 'MIDI access denied - check browser permissions.';
       this.access = null;
       this.emit();
       return false;
@@ -260,7 +260,7 @@ export class MidiIO {
       return;
     }
 
-    // CC 64 sustain, CC 123 all notes off — forward when thru
+    // CC 64 sustain, CC 123 all notes off - forward when thru
     if (cmd === 0xb0 && this.thru) {
       this.sendRaw([status, data1, data2]);
     }

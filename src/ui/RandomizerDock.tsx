@@ -34,7 +34,7 @@ export function RandomizerDock({ config, onChange, onSurprise }: Props) {
       </div>
       <p className="muted small">
         {config.partyMode
-          ? 'Party mode — parameters are dancing'
+          ? 'Party mode - parameters are dancing'
           : 'Toggle categories, then Surprise or Party'}
       </p>
 

@@ -9,7 +9,7 @@ type Props = {
 const FEATURES = [
   {
     title: 'Multi-track color',
-    body: 'Left and right hands light up in separate colors — recolor, mute, or hide any track.',
+    body: 'Left and right hands light up in separate colors - recolor, mute, or hide any track.',
     icon: '🎹',
   },
   {
@@ -19,12 +19,12 @@ const FEATURES = [
   },
   {
     title: 'Party mode',
-    body: 'Parameters dance over time — smooth slides, palette flips, pure visual chaos on demand.',
+    body: 'Parameters dance over time - smooth slides, palette flips, pure visual chaos on demand.',
     icon: '🎉',
   },
   {
     title: 'Yours, no watermark',
-    body: 'Runs in the browser. Export by recording the player — nothing stamped on your video.',
+    body: 'Runs in the browser. Export by recording the player - nothing stamped on your video.',
     icon: '🎬',
   },
 ];
@@ -71,7 +71,7 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
           </h1>
           <p className="home-lead">
             Load a multi-track MIDI, watch notes fall with particles, glows, and music-reactive
-            atmosphere — then fullscreen and record. No account, no watermark, no install.
+            atmosphere - then fullscreen and record. No account, no watermark, no install.
           </p>
 
           <div className="home-ctas">

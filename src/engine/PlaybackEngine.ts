@@ -10,7 +10,7 @@ export type LiveNoteState = {
   pitch: number;
   velocity: number;
   channel: number;
-  /** performance.now() when pressed (wall clock — animates without song play) */
+  /** performance.now() when pressed (wall clock - animates without song play) */
   wallStart: number;
   /** performance.now() when released; null while still held */
   wallEnd: number | null;
@@ -269,7 +269,7 @@ export class PlaybackEngine {
     this.pauseOffset = this.getTime();
     this.audio.transportPauseStop();
     this.audio.clearSchedule();
-    // clearSchedule releases synths — drop live visual state to match
+    // clearSchedule releases synths - drop live visual state to match
     this.clearLiveVisual();
     this.state = 'paused';
     this.emit();

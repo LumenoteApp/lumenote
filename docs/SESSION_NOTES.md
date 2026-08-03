@@ -1,4 +1,4 @@
-# Session notes — Lumenote
+# Session notes - Lumenote
 
 **Purpose:** handoff for a new chat/agent with a clean context window.  
 **Last updated:** 2026-08-03 (rebrand → Lumenote)  
@@ -9,7 +9,7 @@ Read this first, then `docs/ARCHITECTURE.md` if you need to change code.
 
 ## What this project is
 
-**Lumenote** — browser multi-track MIDI piano visualizer (Embers/SeeMusic-style, but ours, no watermark).
+**Lumenote** - browser multi-track MIDI piano visualizer (Embers/SeeMusic-style, but ours, no watermark).
 
 - Local path: `C:\Users\Matt\projects\midi-visualizer`
 - GitHub: https://github.com/UnSlopd/lumenote (public, account **UnSlopd**)
@@ -46,7 +46,7 @@ SF2 worklet must be served from public (already there):
 | **Live MIDI** | Web MIDI in (keyboard) + out (song playback / thru) |
 | **Colors** | Modes (track/RGB/pitch/…) + palettes |
 | **Visuals / Particles / Background / Music reactive** | Detailed sliders + per-section randomize |
-| **Fullscreen** | `F` / ⛶ — player-only chrome; **`B`** or edge **‹** opens studio panel as overlay |
+| **Fullscreen** | `F` / ⛶ - player-only chrome; **`B`** or edge **‹** opens studio panel as overlay |
 | **Export video** | **Bake** (offline stepped frames, smooth MP4) or realtime MediaRecorder |
 
 ### Shortcuts
@@ -122,10 +122,10 @@ docs/DEVELOPMENT.md
 Grouped sections with labels; docked in studio, **overlay** in fullscreen (`B` / edge ‹):
 
 1. Brand (click → home)  
-2. **Scene** — presets · Surprise me / party  
-3. **Audio** — Sound · Live MIDI  
-4. **Look** — Colors/tracks · Visuals / reactive / bg / particles  
-5. **Export** — 1080p realtime video (30/60 fps)  
+2. **Scene** - presets · Surprise me / party  
+3. **Audio** - Sound · Live MIDI  
+4. **Look** - Colors/tracks · Visuals / reactive / bg / particles  
+5. **Export** - 1080p realtime video (30/60 fps)  
 6. **Shortcuts**  
 
 Fullscreen: panel slides over the piano (does not shrink the stage).  
@@ -138,7 +138,7 @@ Fullscreen: panel slides over the piano (does not shrink the stage).
 - Live Web MIDI in/out (Chromium); no browser QWERTY piano yet  
 - Party mode updates React ~30fps (throttled)  
 - SF2 large files can be slow to load first time  
-- Commit author email on GitHub: `slopdai@proton.me` (public in git history — not a secret, but personal)
+- Commit author email on GitHub: `slopdai@proton.me` (public in git history - not a secret, but personal)
 
 ---
 

@@ -5,7 +5,7 @@ import { normalizeColorSettings } from './colorPresets';
 import { getPreset as getParticlePreset } from './particlePresets';
 
 const STORAGE_KEY = 'lumenote-scene-presets-v1';
-/** Previous brand — migrate once so saved looks aren't lost */
+/** Previous brand - migrate once so saved looks aren't lost */
 const LEGACY_STORAGE_KEY = 'notefall-scene-presets-v1';
 
 /** Full snapshot of the studio look + sound */
@@ -40,7 +40,7 @@ export function captureScene(
   instrumentId: InstrumentId,
   volume: number,
 ): ScenePresetData {
-  // Don't persist custom SF2 as playable without the file — store id but UI will warn
+  // Don't persist custom SF2 as playable without the file - store id but UI will warn
   return {
     settings: cloneSettings(settings),
     instrumentId,

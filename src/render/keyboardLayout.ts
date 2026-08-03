@@ -1,4 +1,4 @@
-/** Standard 88-key piano: A0 (21) – C8 (108) */
+/** Standard 88-key piano: A0 (21) - C8 (108) */
 export const FIRST_MIDI = 21;
 export const LAST_MIDI = 108;
 export const KEY_COUNT = LAST_MIDI - FIRST_MIDI + 1;

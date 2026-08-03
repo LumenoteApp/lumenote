@@ -299,14 +299,14 @@ export function resolveNoteColor(opts: {
     }
 
     case 'rainbow_time': {
-      // Full RGB loop — continuous hue spin
+      // Full RGB loop - continuous hue spin
       const hue = (time * speed * 120) % 360;
       dynamic = hsvToHex(hue, s, Math.min(1, v));
       break;
     }
 
     case 'rainbow_pitch': {
-      // Map A0–C8 → full hue wheel
+      // Map A0-C8 → full hue wheel
       const t = (pitch - 21) / (108 - 21);
       const hue = (t * 300 + time * speed * 20) % 360;
       dynamic = hsvToHex(hue, s, Math.min(1, v));

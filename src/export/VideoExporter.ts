@@ -33,7 +33,7 @@ export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {
   mode: 'bake',
 };
 
-/** WebCodecs available — required for smooth offline bake */
+/** WebCodecs available - required for smooth offline bake */
 export function canBakeOffline(): boolean {
   return typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined';
 }

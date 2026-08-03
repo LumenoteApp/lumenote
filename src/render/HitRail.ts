@@ -1,5 +1,5 @@
 /**
- * Reactive impact rail — where notes meet the keyboard.
+ * Reactive impact rail - where notes meet the keyboard.
  * Not a static white line: soft base + local color blooms on hits/active keys.
  */
 
@@ -61,7 +61,7 @@ export class HitRail {
 
     ctx.save();
 
-    // Soft base rail (very subtle — not a hard white line)
+    // Soft base rail (very subtle - not a hard white line)
     const baseA = (0.06 + this.pulse * 0.12) * intensity;
     const band = ctx.createLinearGradient(0, hitY - 14, 0, hitY + 14);
     band.addColorStop(0, 'rgba(255,255,255,0)');

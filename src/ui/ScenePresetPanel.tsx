@@ -52,7 +52,7 @@ export function ScenePresetPanel({
     <section className="panel scene-preset-panel">
       <h2>Scene presets</h2>
       <p className="muted small">
-        Save everything — visuals, particles, colors, FX, sound & volume — and load it later.
+        Save everything - visuals, particles, colors, FX, sound & volume - and load it later.
       </p>
 
       <div className="scene-save-row">
@@ -73,7 +73,7 @@ export function ScenePresetPanel({
       </div>
       {instrumentId === 'sf2' && (
         <p className="muted small scene-sf2-note">
-          Note: SF2 files themselves aren’t stored — reload your soundfont after loading this preset.
+          Note: SF2 files themselves aren’t stored - reload your soundfont after loading this preset.
         </p>
       )}
 

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.jpg" alt="Lumenote — multi-track MIDI piano visualizer" width="100%" />
+  <img src="docs/banner.jpg" alt="Lumenote - multi-track MIDI piano visualizer" width="100%" />
 </p>
 
 <p align="center">
@@ -110,7 +110,7 @@ npm run preview
 
 | Doc | Purpose |
 |-----|---------|
-| [docs/SESSION_NOTES.md](docs/SESSION_NOTES.md) | **Handoff** — start a new session here |
+| [docs/SESSION_NOTES.md](docs/SESSION_NOTES.md) | **Handoff** - start a new session here |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Setup & conventions |
 | [AGENTS.md](AGENTS.md) | Short rules for coding agents |
@@ -161,5 +161,5 @@ PRs and issues welcome.
 ---
 
 <p align="center">
-  <sub>Made for people who want piano videos that actually move — without a watermark.</sub>
+  <sub>Made for people who want piano videos that actually move - without a watermark.</sub>
 </p>

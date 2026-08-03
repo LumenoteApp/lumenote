@@ -6,7 +6,7 @@
 import type { MusicReactiveParams } from '../midi/types';
 
 export type MusicBandEnergy = {
-  /** 0–1 overall activity */
+  /** 0-1 overall activity */
   total: number;
   bass: number;
   mid: number;
@@ -150,7 +150,7 @@ export class MusicReactiveField {
   /**
    * Drive the field from current musical state.
    * active: list of held notes with position + color
-   * onsetStrength: 0–1 spike when new notes land this frame
+   * onsetStrength: 0-1 spike when new notes land this frame
    */
   update(
     dt: number,
@@ -345,7 +345,7 @@ export class MusicReactiveField {
     }
   }
 
-  /** 0–1 value for other systems (bg, rail) to piggyback on */
+  /** 0-1 value for other systems (bg, rail) to piggyback on */
   getSmoothedEnergy() {
     return this.energySmooth;
   }
@@ -473,7 +473,7 @@ export function analyzeMusicEnergy(
   let vel = 0;
   for (const n of active) {
     vel += n.velocity;
-    // MIDI: bass < 48, mid 48–72, high > 72
+    // MIDI: bass < 48, mid 48-72, high > 72
     if (n.pitch < 48) bass += n.velocity;
     else if (n.pitch <= 72) mid += n.velocity;
     else high += n.velocity;

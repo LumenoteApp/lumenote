@@ -15,7 +15,7 @@ Requirements: Node.js with npm; modern Chromium/Firefox/Edge recommended for SF2
 | Command | Purpose |
 |---------|---------|
 | `npm run dev` | Vite dev server |
-| `npm run build` | `tsc -b && vite build` — **must pass before push** |
+| `npm run build` | `tsc -b && vite build` - **must pass before push** |
 | `npm run preview` | Serve production build |
 | `npm run lint` | oxlint |
 
@@ -32,7 +32,7 @@ Requirements: Node.js with npm; modern Chromium/Firefox/Edge recommended for SF2
 
 1. Add id + metadata in `src/engine/instruments.ts` (`BUILTIN_INSTRUMENTS`).  
 2. Implement `createToneInstrument` case **or** map to TinySynth quality/program.  
-3. No SF2 binary in repo — user loads files locally.
+3. No SF2 binary in repo - user loads files locally.
 
 ## Adding a scene preset
 
@@ -74,7 +74,7 @@ git push origin master
 
 | Symptom | Likely cause |
 |---------|----------------|
-| Audio silent until click | Expected autoplay policy — press Play |
+| Audio silent until click | Expected autoplay policy - press Play |
 | Desync after UI change | Accidental reschedule without reanchor |
 | SF2 fails | Missing worklet file / large file / wrong path |
 | Crash on color sliders | Missing `normalizeColorSettings` |

@@ -44,7 +44,7 @@
 
 /* ── Randomizer dock (sidebar panel under brand, above Colors) ── */
 .sidebar .randomizer-dock {
-  /* same flow as other .panel cards — not sticky */
+  /* same flow as other .panel cards - not sticky */
   border-color: rgba(79, 195, 247, 0.22);
 }
 
@@ -811,7 +811,7 @@
   pointer-events: none;
 }
 
-/* Edge chevron — peeks from the right in fullscreen */
+/* Edge chevron - peeks from the right in fullscreen */
 .sidebar-edge-toggle {
   position: absolute;
   top: 50%;

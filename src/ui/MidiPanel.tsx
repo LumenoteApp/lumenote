@@ -59,7 +59,7 @@ export function MidiPanel() {
   const enable = useCallback(async () => {
     setBusy(true);
     try {
-      // User gesture — also warm audio so first note isn't silent
+      // User gesture - also warm audio so first note isn't silent
       await playbackEngine.audio.init();
       await midiIO.enable();
     } finally {

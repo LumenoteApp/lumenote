@@ -274,7 +274,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
           }
         />
         <p className="muted small">
-          Particle animation that breathes with the notes — dust, rising streams, shockwaves.
+          Particle animation that breathes with the notes - dust, rising streams, shockwaves.
         </p>
 
         <div className="preset-grid" style={{ marginTop: '0.5rem' }}>
@@ -337,7 +337,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
             })
           }
         />
-        <p className="muted small">Atmosphere behind the notes — reacts to what you play.</p>
+        <p className="muted small">Atmosphere behind the notes - reacts to what you play.</p>
 
         <div className="preset-grid">
           {BACKGROUND_PRESETS.map((pr) => (
