@@ -1,6 +1,7 @@
 import type { VisualSettings } from '../midi/types';
 import { DEFAULT_BACKGROUND } from './backgroundPresets';
 import { DEFAULT_COLOR_SETTINGS } from './colorPresets';
+import { DEFAULT_NOTE_STYLE } from './notePresets';
 import { getPreset } from './particlePresets';
 
 /** Distinct hues for multi-track coloring (LH/RH etc.) */
@@ -29,6 +30,8 @@ export const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
   pixelsPerSecond: 280,
   noteOpacity: 0.92,
   glowStrength: 0.65,
+  notes: { ...DEFAULT_NOTE_STYLE },
+  noteStylePresetId: 'solid',
   particlesEnabled: true,
   particlePresetId: 'ember',
   particles: { ...ember.params },

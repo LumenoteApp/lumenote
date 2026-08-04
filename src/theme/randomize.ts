@@ -1,12 +1,14 @@
 import type {
   BackgroundParams,
   BackgroundStyle,
+  MusicReactiveParams,
+  NoteStyleParams,
   ParticleParams,
   VisualSettings,
 } from '../midi/types';
 import type { ColorMode, ColorSettings } from './colorPresets';
 import { COLOR_MODE_PRESETS, TRACK_PALETTE_PRESETS } from './colorPresets';
-import type { MusicReactiveParams } from '../midi/types';
+import { NOTE_STYLE_PRESETS } from './notePresets';
 
 export function rand(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -140,6 +142,17 @@ export function randomizeVisuals(): VisualCoreRandom {
   };
 }
 
+export function randomizeNoteStyle(): NoteStyleParams {
+  const preset = pick(NOTE_STYLE_PRESETS);
+  return {
+    ...preset.params,
+    border: snap(rand(0.1, 1)),
+    shine: snap(rand(0.15, 1)),
+    innerFx: snap(rand(0.15, 1.25)),
+    roundness: snap(rand(0.05, 0.95)),
+  };
+}
+
 export function randomizeColors(): ColorSettings {
   const mode = pick(COLOR_MODE_PRESETS.map((m) => m.id)) as ColorMode;
   const paletteId = pick(TRACK_PALETTE_PRESETS).id;
@@ -154,12 +167,12 @@ export function randomizeColors(): ColorSettings {
 }
 
 /** Full look: every section at once */
-export function randomizeEverything(
-  current: VisualSettings,
-): VisualSettings {
+export function randomizeEverything(current: VisualSettings): VisualSettings {
   return {
     ...current,
     ...randomizeVisuals(),
+    notes: randomizeNoteStyle(),
+    noteStylePresetId: 'custom',
     particlesEnabled: true,
     particlePresetId: 'custom',
     particles: randomizeParticles(),

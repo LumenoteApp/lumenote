@@ -11,6 +11,7 @@ import {
   randomizeBackground,
   randomizeColors,
   randomizeMusicReactive,
+  randomizeNoteStyle,
   randomizeParticles,
   randomizeVisuals,
 } from './randomize';
@@ -69,7 +70,12 @@ export function randomizeSelected(
 ): VisualSettings {
   let next: VisualSettings = { ...current };
   if (cats.visuals) {
-    next = { ...next, ...randomizeVisuals() };
+    next = {
+      ...next,
+      ...randomizeVisuals(),
+      notes: randomizeNoteStyle(),
+      noteStylePresetId: 'custom',
+    };
   }
   if (cats.particles) {
     next = {
@@ -104,6 +110,7 @@ export function randomizeContinuousTargets(
 
   if (cats.visuals) {
     const v = randomizeVisuals();
+    const n = randomizeNoteStyle();
     // Keep booleans stable while dancing - only slide numbers
     next = {
       ...next,
@@ -112,7 +119,14 @@ export function randomizeContinuousTargets(
       glowStrength: v.glowStrength,
       keyboardHeight: v.keyboardHeight,
       hitRailIntensity: v.hitRailIntensity,
-      // soft drift base color occasionally handled as discrete
+      notes: {
+        ...next.notes,
+        border: n.border,
+        shine: n.shine,
+        innerFx: n.innerFx,
+        roundness: n.roundness,
+        // style flips via discrete party path
+      },
     };
   }
 
@@ -205,6 +219,15 @@ export function randomizeDiscreteFlip(
     } else {
       next = { ...next, colors: c };
     }
+  }
+
+  if (cats.visuals && Math.random() < 0.55) {
+    const n = randomizeNoteStyle();
+    next = {
+      ...next,
+      notes: n,
+      noteStylePresetId: 'custom',
+    };
   }
 
   if (cats.background && Math.random() < 0.7) {
@@ -315,6 +338,14 @@ export function lerpSettings(
       backgroundColor: to.backgroundColor !== from.backgroundColor && k > 0.92
         ? to.backgroundColor
         : from.backgroundColor,
+      notes: {
+        style: to.notes?.style ?? from.notes?.style ?? 'solid',
+        border: lerp(from.notes?.border ?? 0.25, to.notes?.border ?? 0.25, e),
+        shine: lerp(from.notes?.shine ?? 0.35, to.notes?.shine ?? 0.35, e),
+        innerFx: lerp(from.notes?.innerFx ?? 0.35, to.notes?.innerFx ?? 0.35, e),
+        roundness: lerp(from.notes?.roundness ?? 0.55, to.notes?.roundness ?? 0.55, e),
+      },
+      noteStylePresetId: to.noteStylePresetId ?? from.noteStylePresetId,
     };
   }
 

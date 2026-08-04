@@ -9,7 +9,9 @@ import { ParticleSystem } from './ParticleSystem';
 import { BackgroundEffects } from './BackgroundEffects';
 import { HitRail } from './HitRail';
 import { MusicReactiveField, analyzeMusicEnergy } from './MusicReactiveField';
+import { drawStyledNoteBar } from './noteStyles';
 import { normalizeColorSettings, resolveNoteColor } from '../theme/colorPresets';
+import { normalizeNoteStyle } from '../theme/notePresets';
 
 const DEFAULT_KEYBOARD_H = 200;
 const MIN_KEYBOARD_H = 100;
@@ -265,6 +267,8 @@ export class VisualizerEngine {
     const pulse = this.musicField.getPulse();
     const bass = this.musicField.getBassKick();
 
+    const noteStyle = normalizeNoteStyle(s.notes);
+
     const drawNoteBar = (
       pitch: number,
       velocity: number,
@@ -283,34 +287,25 @@ export class VisualizerEngine {
         ? 1 + pulse * 0.12 + (isActive ? bass * 0.08 : 0)
         : 1;
       const alpha = s.noteOpacity * (0.55 + velocity * 0.45);
-
-      if (s.glowStrength > 0.05) {
-        ctx.shadowColor = hexAlpha(
-          color,
-          0.55 * s.glowStrength * (isActive ? 1 + pulse * 0.4 : 1),
-        );
-        ctx.shadowBlur =
-          18 * s.glowStrength * (isActive ? 1.4 + pulse * 0.6 : 1) * reactiveBoost;
-      } else {
-        ctx.shadowBlur = 0;
-      }
-
       const drawW = keyW * (isActive ? reactiveBoost : 1);
       const drawX = xCenter - drawW / 2;
-      const grad = ctx.createLinearGradient(drawX, yTop, drawX, yBottom);
-      grad.addColorStop(0, hexAlpha(color, alpha * 0.75));
-      grad.addColorStop(0.5, hexAlpha(color, alpha));
-      grad.addColorStop(1, hexAlpha(color, alpha * 0.9));
-      ctx.fillStyle = grad;
-      roundedRect(ctx, drawX, yTop, drawW, noteH, 5);
-      ctx.fill();
 
-      if (isActive) {
-        ctx.shadowBlur = 24 * s.glowStrength * (1 + pulse * 0.5);
-        ctx.fillStyle = hexAlpha('#ffffff', 0.35 + pulse * 0.15);
-        roundedRect(ctx, drawX, yBottom - 10, drawW, 10, 4);
-        ctx.fill();
-      }
+      drawStyledNoteBar({
+        ctx,
+        x: drawX,
+        y: yTop,
+        w: drawW,
+        h: noteH,
+        color,
+        alpha,
+        isActive,
+        velocity,
+        pitch,
+        time,
+        glowStrength: s.glowStrength,
+        pulse,
+        notes: noteStyle,
+      });
     };
 
     ctx.save();

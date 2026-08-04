@@ -1,8 +1,18 @@
-import type { VisualSettings } from '../midi/types';
+import type { NoteStyleParams, VisualSettings } from '../midi/types';
 import type { InstrumentId } from '../engine/instruments';
 import { DEFAULT_VISUAL_SETTINGS } from './defaultPalette';
 import { normalizeColorSettings } from './colorPresets';
+import { getNoteStylePreset, normalizeNoteStyle } from './notePresets';
 import { getPreset as getParticlePreset } from './particlePresets';
+
+/** Shorthand: attach a factory note look (optionally tweaked) to a scene. */
+function noteLook(presetId: string, overrides?: Partial<NoteStyleParams>) {
+  const p = getNoteStylePreset(presetId);
+  return {
+    noteStylePresetId: presetId,
+    notes: normalizeNoteStyle({ ...p.params, ...overrides }),
+  };
+}
 
 const STORAGE_KEY = 'lumenote-scene-presets-v1';
 /** Previous brand - migrate once so saved looks aren't lost */
@@ -56,6 +66,7 @@ export type ScenePreset = ScenePresetData & {
 function cloneSettings(s: VisualSettings): VisualSettings {
   return {
     ...s,
+    notes: normalizeNoteStyle(s.notes),
     particles: { ...s.particles },
     background: { ...s.background },
     musicReactive: { ...s.musicReactive },
@@ -99,6 +110,14 @@ export function hydrateSceneData(raw: Partial<ScenePresetData> | null | undefine
         ...DEFAULT_VISUAL_SETTINGS.musicReactive,
         ...(s.musicReactive ?? {}),
       },
+      notes: normalizeNoteStyle({
+        ...DEFAULT_VISUAL_SETTINGS.notes,
+        ...(s.notes ?? {}),
+      }),
+      noteStylePresetId:
+        typeof s.noteStylePresetId === 'string'
+          ? s.noteStylePresetId
+          : DEFAULT_VISUAL_SETTINGS.noteStylePresetId,
       colors: normalizeColorSettings(s.colors ?? DEFAULT_VISUAL_SETTINGS.colors),
     },
   };
@@ -115,6 +134,7 @@ function makeBuiltIn(
       background?: Partial<VisualSettings['background']>;
       musicReactive?: Partial<VisualSettings['musicReactive']>;
       colors?: Partial<VisualSettings['colors']>;
+      notes?: Partial<VisualSettings['notes']>;
     };
     instrumentId?: InstrumentId;
     volume?: number;
@@ -136,6 +156,8 @@ function makeBuiltIn(
       particles: { ...base.settings.particles, ...(ps.particles ?? {}) },
       background: { ...base.settings.background, ...(ps.background ?? {}) },
       musicReactive: { ...base.settings.musicReactive, ...(ps.musicReactive ?? {}) },
+      notes: normalizeNoteStyle({ ...base.settings.notes, ...(ps.notes ?? {}) }),
+      noteStylePresetId: ps.noteStylePresetId ?? base.settings.noteStylePresetId,
       colors: normalizeColorSettings({ ...base.settings.colors, ...(ps.colors ?? {}) }),
     },
   };
@@ -156,6 +178,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'piano',
     volume: 0.85,
     settings: {
+      ...noteLook('solid', { border: 0.35, shine: 0.45, innerFx: 0.3 }),
       particlePresetId: 'ember',
       particles: { ...ember },
       particlesEnabled: true,
@@ -197,6 +220,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'piano',
     volume: 0.82,
     settings: {
+      ...noteLook('glass', { border: 0.4, shine: 0.7, innerFx: 0.25, roundness: 0.75 }),
       particlePresetId: 'ember',
       particles: { ...ember, density: 0.85, gravity: -0.2 },
       particlesEnabled: true,
@@ -239,6 +263,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'epiano',
     volume: 0.8,
     settings: {
+      ...noteLook('crystal', { border: 0.8, shine: 1, innerFx: 0.85 }),
       particlePresetId: 'crystal',
       particles: { ...crystal },
       particlesEnabled: true,
@@ -283,6 +308,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'chiptune',
     volume: 0.8,
     settings: {
+      ...noteLook('outline', { border: 1, shine: 0.6, innerFx: 0.4 }),
       particlePresetId: 'neon',
       particles: { ...neon },
       particlesEnabled: true,
@@ -326,6 +352,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'bass',
     volume: 0.9,
     settings: {
+      ...noteLook('plasma', { border: 0.65, shine: 0.55, innerFx: 1.2 }),
       particlePresetId: 'neon',
       particles: { ...neon, density: 1.45, trail: 0.85 },
       particlesEnabled: true,
@@ -368,6 +395,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'chip_lead',
     volume: 0.84,
     settings: {
+      ...noteLook('outline', { border: 1, shine: 0.75, innerFx: 0.5, roundness: 0.4 }),
       particlePresetId: 'neon',
       particles: { ...neon, density: 1.5, secondaryBurst: 1 },
       particlesEnabled: true,
@@ -410,6 +438,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'organ',
     volume: 0.88,
     settings: {
+      ...noteLook('flame', { border: 0.55, shine: 0.65, innerFx: 1.2 }),
       particlePresetId: 'inferno',
       particles: { ...inferno },
       particlesEnabled: true,
@@ -454,6 +483,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'pad',
     volume: 0.75,
     settings: {
+      ...noteLook('glass', { border: 0.5, shine: 0.9, innerFx: 0.4, roundness: 0.8 }),
       particlePresetId: 'aurora',
       particles: { ...aurora },
       particlesEnabled: true,
@@ -497,6 +527,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'pad',
     volume: 0.72,
     settings: {
+      ...noteLook('glass', { border: 0.45, shine: 0.75, innerFx: 0.3, roundness: 0.7 }),
       particlePresetId: 'soft',
       particles: { ...soft, gravity: 0.15, lifetime: 1.2 },
       particlesEnabled: true,
@@ -539,6 +570,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'pluck',
     volume: 0.76,
     settings: {
+      ...noteLook('gem', { border: 0.55, shine: 0.85, innerFx: 0.5, roundness: 0.55 }),
       particlePresetId: 'aurora',
       particles: { ...aurora, density: 0.9 },
       particlesEnabled: true,
@@ -581,6 +613,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'epiano',
     volume: 0.74,
     settings: {
+      ...noteLook('solid', { border: 0.2, shine: 0.4, innerFx: 0.15, roundness: 0.65 }),
       particlePresetId: 'soft',
       particles: { ...soft },
       particlesEnabled: true,
@@ -625,6 +658,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'piano',
     volume: 0.8,
     settings: {
+      ...noteLook('outline', { border: 0.7, shine: 0.25, innerFx: 0.1, roundness: 0.35 }),
       particlePresetId: 'soft',
       particles: { ...soft, density: 0.7, sparkle: 0.2 },
       particlesEnabled: true,
@@ -667,6 +701,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'strings',
     volume: 0.78,
     settings: {
+      ...noteLook('chrome', { border: 0.35, shine: 0.95, innerFx: 0.35, roundness: 0.5 }),
       particlePresetId: 'ember',
       particles: { ...ember, density: 1, gravity: -0.45 },
       particlesEnabled: true,
@@ -709,6 +744,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'organ',
     volume: 0.86,
     settings: {
+      ...noteLook('solid', { border: 0.5, shine: 0.4, innerFx: 0.25, roundness: 0.4 }),
       particlePresetId: 'stardust',
       particles: { ...stardust },
       particlesEnabled: true,
@@ -751,6 +787,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'strings',
     volume: 0.84,
     settings: {
+      ...noteLook('flame', { border: 0.45, shine: 0.55, innerFx: 1.05 }),
       particlePresetId: 'inferno',
       particles: { ...inferno, density: 0.95 },
       particlesEnabled: true,
@@ -795,6 +832,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'gm_chip',
     volume: 0.82,
     settings: {
+      ...noteLook('pixel', { border: 0.75, shine: 0.25, innerFx: 0.2 }),
       particlePresetId: 'neon',
       particles: { ...neon, density: 1.1, trail: 0.55 },
       particlesEnabled: true,
@@ -837,6 +875,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'epiano',
     volume: 0.82,
     settings: {
+      ...noteLook('chrome', { border: 0.5, shine: 1, innerFx: 0.45 }),
       particlePresetId: 'crystal',
       particles: { ...crystal },
       particlesEnabled: true,
@@ -879,6 +918,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'chiptune',
     volume: 0.83,
     settings: {
+      ...noteLook('pixel', { border: 0.7, shine: 0.3, innerFx: 0.25, roundness: 0.05 }),
       particlePresetId: 'neon',
       particles: { ...neon, trail: 0.65 },
       particlesEnabled: true,
@@ -921,6 +961,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'gm_quality',
     volume: 0.84,
     settings: {
+      ...noteLook('chrome', { border: 0.55, shine: 0.9, innerFx: 0.5, roundness: 0.3 }),
       particlePresetId: 'crystal',
       particles: { ...crystal, density: 1.1 },
       particlesEnabled: true,
@@ -965,6 +1006,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'strings',
     volume: 0.78,
     settings: {
+      ...noteLook('gem', { border: 0.6, shine: 0.9, innerFx: 0.65, roundness: 0.45 }),
       particlePresetId: 'stardust',
       particles: { ...stardust },
       particlesEnabled: true,
@@ -1007,6 +1049,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'pad',
     volume: 0.8,
     settings: {
+      ...noteLook('plasma', { border: 0.6, shine: 0.75, innerFx: 1.15 }),
       particlePresetId: 'stardust',
       particles: { ...stardust, density: 1.25, trail: 0.7 },
       particlesEnabled: true,
@@ -1049,6 +1092,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'pad',
     volume: 0.77,
     settings: {
+      ...noteLook('plasma', { border: 0.5, shine: 0.65, innerFx: 0.95, roundness: 0.6 }),
       particlePresetId: 'aurora',
       particles: { ...aurora, density: 1.05 },
       particlesEnabled: true,
@@ -1091,6 +1135,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'pluck',
     volume: 0.81,
     settings: {
+      ...noteLook('gem', { border: 0.85, shine: 1, innerFx: 0.75 }),
       particlePresetId: 'crystal',
       particles: { ...crystal, trail: 0.8, speed: 1.3 },
       particlesEnabled: true,
@@ -1135,6 +1180,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'piano',
     volume: 0.8,
     settings: {
+      ...noteLook('solid', { border: 0.15, shine: 0.25, innerFx: 0.1, roundness: 0.6 }),
       particlePresetId: 'soft',
       particles: { ...soft },
       particlesEnabled: true,
@@ -1178,6 +1224,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'piano',
     volume: 0.78,
     settings: {
+      ...noteLook('solid', { border: 0.1, shine: 0.15, innerFx: 0.05, roundness: 0.5 }),
       particlePresetId: 'soft',
       particles: { ...soft, density: 0.45, bloom: 0.7 },
       particlesEnabled: true,
@@ -1222,6 +1269,7 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'pluck',
     volume: 0.8,
     settings: {
+      ...noteLook('outline', { border: 0.55, shine: 0.2, innerFx: 0.08, roundness: 0.4 }),
       particlePresetId: 'soft',
       particles: { ...soft, density: 0.6, trail: 0.15 },
       particlesEnabled: true,

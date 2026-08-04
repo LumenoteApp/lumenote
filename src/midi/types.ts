@@ -132,10 +132,37 @@ export type ColorSettings = {
   trackBlend: number;
 };
 
+/** Falling note bar appearance */
+export type NoteStyleId =
+  | 'solid'
+  | 'glass'
+  | 'gem'
+  | 'flame'
+  | 'crystal'
+  | 'outline'
+  | 'plasma'
+  | 'chrome'
+  | 'pixel';
+
+export type NoteStyleParams = {
+  style: NoteStyleId;
+  /** Edge stroke strength 0-1 */
+  border: number;
+  /** Specular / top highlight 0-1 */
+  shine: number;
+  /** Internal motion (flame, plasma sparkles, etc.) 0-1.4 */
+  innerFx: number;
+  /** Corner roundness 0-1 */
+  roundness: number;
+};
+
 export type VisualSettings = {
   pixelsPerSecond: number;
   noteOpacity: number;
   glowStrength: number;
+  /** Falling note bar look (fill, border, internal FX) */
+  notes: NoteStyleParams;
+  noteStylePresetId: string;
   particlesEnabled: boolean;
   particlePresetId: string;
   particles: ParticleParams;

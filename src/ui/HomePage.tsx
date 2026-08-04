@@ -28,8 +28,15 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
       title: 'Scene lookbooks',
       stat: String(stats.scenes),
       unit: 'full scenes',
-      body: `${stats.sceneCategories} moods. One click swaps particles, background, colors, and instrument together.`,
+      body: `${stats.sceneCategories} moods. One click swaps note style, particles, background, colors, and instrument.`,
       wide: true,
+    },
+    {
+      title: 'Falling notes',
+      stat: String(stats.noteStyles),
+      unit: 'note styles',
+      body: 'Solid, glass, gem, flame, crystal, outline, plasma, chrome, pixel. Borders, shine, and inner FX.',
+      wide: false,
     },
     {
       title: 'Color systems',
@@ -102,8 +109,8 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
               actually move
             </h1>
             <p className="home-lead">
-              Multi-track MIDI, living particles, and smooth {stats.exportMaxLabel} bake export
-              in the browser. No account. No watermark.
+              Multi-track MIDI, styled falling notes, living particles, and smooth{' '}
+              {stats.exportMaxLabel} bake export. No account. No watermark.
             </p>
             <div className="home-ctas">
               <button type="button" className="btn primary home-cta-main" onClick={onEnter}>
@@ -146,6 +153,10 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
               <span className="home-panel-label">scene presets</span>
             </div>
             <div className="home-panel-row">
+              <span className="home-panel-num">{stats.noteStyles}</span>
+              <span className="home-panel-label">note styles</span>
+            </div>
+            <div className="home-panel-row">
               <span className="home-panel-num">{stats.palettes}</span>
               <span className="home-panel-label">color palettes</span>
             </div>
@@ -171,7 +182,8 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
         {/* Layout family B: capability strip */}
         <section className="home-strip" aria-label="Capabilities">
           <p>
-            Multi-track piano roll · Live MIDI in/out · Surprise + Party mode · Local files only
+            Multi-track piano roll · Gem, flame, plasma note styles · Live MIDI · Party mode · Local
+            files only
           </p>
         </section>
 

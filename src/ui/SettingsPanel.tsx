@@ -1,15 +1,18 @@
 import type {
   BackgroundParams,
   MusicReactiveParams,
+  NoteStyleParams,
   ParticleParams,
   VisualSettings,
 } from '../midi/types';
 import { BACKGROUND_PRESETS } from '../theme/backgroundPresets';
 import { MUSIC_REACTIVE_PRESETS } from '../theme/musicReactivePresets';
+import { NOTE_STYLE_PRESETS } from '../theme/notePresets';
 import { PARTICLE_PRESETS } from '../theme/particlePresets';
 import {
   randomizeBackground,
   randomizeMusicReactive,
+  randomizeNoteStyle,
   randomizeParticles,
   randomizeVisuals,
 } from '../theme/randomize';
@@ -114,6 +117,24 @@ export function SettingsPanel({ settings, onChange }: Props) {
     });
   };
 
+  const setNote = <K extends keyof NoteStyleParams>(key: K, value: NoteStyleParams[K]) => {
+    onChange({
+      ...settings,
+      noteStylePresetId: 'custom',
+      notes: { ...settings.notes, [key]: value },
+    });
+  };
+
+  const applyNotePreset = (id: string) => {
+    const preset = NOTE_STYLE_PRESETS.find((p) => p.id === id);
+    if (!preset) return;
+    onChange({
+      ...settings,
+      noteStylePresetId: id,
+      notes: { ...preset.params },
+    });
+  };
+
   const applyMusicPreset = (id: string) => {
     const preset = MUSIC_REACTIVE_PRESETS.find((p) => p.id === id);
     if (!preset) return;
@@ -199,6 +220,101 @@ export function SettingsPanel({ settings, onChange }: Props) {
             step={0.05}
             value={settings.noteOpacity}
             onChange={(e) => set('noteOpacity', Number(e.target.value))}
+          />
+        </label>
+
+        <div className="field" style={{ marginTop: '0.65rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="field-label">Note style</span>
+            <button
+              type="button"
+              className="btn tiny"
+              onClick={() =>
+                onChange({
+                  ...settings,
+                  noteStylePresetId: 'custom',
+                  notes: randomizeNoteStyle(),
+                })
+              }
+            >
+              Random
+            </button>
+          </div>
+          <div className="preset-grid" style={{ marginTop: '0.4rem' }}>
+            {NOTE_STYLE_PRESETS.map((p) => {
+              const active =
+                settings.noteStylePresetId === p.id ||
+                (settings.noteStylePresetId === 'custom' && settings.notes?.style === p.params.style);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`preset-chip ${active ? 'active' : ''}`}
+                  title={p.blurb}
+                  onClick={() => applyNotePreset(p.id)}
+                >
+                  <span className="preset-name">{p.name}</span>
+                  <span className="preset-blurb">{p.blurb}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <label className="field compact">
+          <span className="field-label">
+            Note border
+            <em>{(settings.notes?.border ?? 0).toFixed(2)}</em>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={settings.notes?.border ?? 0.25}
+            onChange={(e) => setNote('border', Number(e.target.value))}
+          />
+        </label>
+        <label className="field compact">
+          <span className="field-label">
+            Note shine
+            <em>{(settings.notes?.shine ?? 0).toFixed(2)}</em>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={settings.notes?.shine ?? 0.35}
+            onChange={(e) => setNote('shine', Number(e.target.value))}
+          />
+        </label>
+        <label className="field compact">
+          <span className="field-label">
+            Inner FX
+            <em>{(settings.notes?.innerFx ?? 0).toFixed(2)}</em>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1.4}
+            step={0.05}
+            value={settings.notes?.innerFx ?? 0.35}
+            onChange={(e) => setNote('innerFx', Number(e.target.value))}
+          />
+        </label>
+        <label className="field compact">
+          <span className="field-label">
+            Roundness
+            <em>{(settings.notes?.roundness ?? 0).toFixed(2)}</em>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={settings.notes?.roundness ?? 0.55}
+            onChange={(e) => setNote('roundness', Number(e.target.value))}
           />
         </label>
 

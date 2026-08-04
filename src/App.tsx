@@ -58,6 +58,7 @@ function formatTime(sec: number) {
 function cloneSettings(s: VisualSettings): VisualSettings {
   return {
     ...s,
+    notes: { ...s.notes },
     particles: { ...s.particles },
     background: { ...s.background },
     musicReactive: { ...s.musicReactive },
@@ -91,6 +92,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState<VisualSettings>(() => ({
     ...DEFAULT_VISUAL_SETTINGS,
+    notes: { ...DEFAULT_VISUAL_SETTINGS.notes },
     musicReactive: { ...DEFAULT_VISUAL_SETTINGS.musicReactive },
     colors: normalizeColorSettings(DEFAULT_VISUAL_SETTINGS.colors),
     particles: { ...DEFAULT_VISUAL_SETTINGS.particles },
