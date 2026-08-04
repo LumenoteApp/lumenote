@@ -290,7 +290,8 @@ export class VisualizerEngine {
       const reactiveBoost = s.musicReactive.enabled
         ? 1 + pulse * 0.12 + (isActive ? bass * 0.08 : 0)
         : 1;
-      const alpha = s.noteOpacity * (0.55 + velocity * 0.45);
+      // Keep notes mostly opaque so dark stage doesn't show through as a muddy gradient
+      const alpha = s.noteOpacity * (0.88 + velocity * 0.12);
       const drawW = keyW * (isActive ? reactiveBoost : 1);
       const drawX = xCenter - drawW / 2;
 

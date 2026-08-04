@@ -8,6 +8,7 @@ import {
   CanvasSource,
   Mp4OutputFormat,
   Output,
+  Quality,
   QUALITY_HIGH,
   canEncodeAudio,
   canEncodeVideo,
@@ -24,7 +25,12 @@ import {
   type BuiltinInstrumentId,
 } from '../engine/instruments';
 import { VisualizerEngine } from '../render/VisualizerEngine';
-import { EXPORT_DESIGN, type ExportFps, type ExportProgress } from './VideoExporter';
+import {
+  EXPORT_DESIGN,
+  videoBitrate,
+  type ExportFps,
+  type ExportProgress,
+} from './VideoExporter';
 
 export type BakeOptions = {
   song: Song;
@@ -42,18 +48,35 @@ export type BakeOptions = {
   isCancelled?: () => boolean;
 };
 
-async function pickVideoCodec(width: number, height: number): Promise<VideoCodec | null> {
-  const preferred: VideoCodec[] = ['avc', 'hevc', 'vp9', 'av1', 'vp8'];
+/**
+ * High bitrate VBR - dark particle visuals macroblock badly on "high" presets.
+ * Prefer modern codecs (VP9/AV1/HEVC) which handle near-black gradients better than AVC.
+ */
+function bakeVideoQuality(width: number, height: number, fps: number): Quality {
+  const bitrate = videoBitrate(width, height, fps);
+  return new Quality({
+    bitrate,
+    bitrateMode: 'variable',
+  });
+}
+
+async function pickVideoCodec(
+  width: number,
+  height: number,
+  quality: Quality,
+): Promise<VideoCodec | null> {
+  // Prefer codecs that handle dark gradients better than baseline H.264
+  const preferred: VideoCodec[] = ['vp9', 'av1', 'hevc', 'avc', 'vp8'];
   for (const codec of preferred) {
     try {
-      if (await canEncodeVideo(codec, { width, height, quality: QUALITY_HIGH })) {
+      if (await canEncodeVideo(codec, { width, height, quality })) {
         return codec;
       }
     } catch {
       /* try next */
     }
   }
-  return getFirstEncodableVideoCodec(preferred, { width, height, quality: QUALITY_HIGH });
+  return getFirstEncodableVideoCodec(preferred, { width, height, quality });
 }
 
 async function pickAudioCodec(): Promise<AudioCodec | null> {
@@ -66,6 +89,35 @@ async function pickAudioCodec(): Promise<AudioCodec | null> {
     }
   }
   return getFirstEncodableAudioCodec(preferred, { quality: QUALITY_HIGH });
+}
+
+/** Tiny tiled noise used to break flat near-black banding (very subtle). */
+function createDitherTile(): HTMLCanvasElement | OffscreenCanvas {
+  const size = 64;
+  const tile =
+    typeof OffscreenCanvas !== 'undefined'
+      ? new OffscreenCanvas(size, size)
+      : document.createElement('canvas');
+  if (!(tile instanceof OffscreenCanvas)) {
+    (tile as HTMLCanvasElement).width = size;
+    (tile as HTMLCanvasElement).height = size;
+  } else {
+    tile.width = size;
+    tile.height = size;
+  }
+  const tctx = tile.getContext('2d') as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null;
+  if (!tctx) return tile;
+  const img = tctx.createImageData(size, size);
+  for (let i = 0; i < img.data.length; i += 4) {
+    // Low-amplitude grain so it only dithers blacks, not visible snow
+    const n = 8 + ((Math.random() * 24) | 0);
+    img.data[i] = n;
+    img.data[i + 1] = n;
+    img.data[i + 2] = n;
+    img.data[i + 3] = 255;
+  }
+  tctx.putImageData(img, 0, 0);
+  return tile;
 }
 
 /**
@@ -192,7 +244,8 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
 
   report({ phase: 'preparing', message: 'Preparing offline bake…', elapsed: 0 });
 
-  const videoCodec = await pickVideoCodec(width, height);
+  const videoQuality = bakeVideoQuality(width, height, fps);
+  const videoCodec = await pickVideoCodec(width, height, videoQuality);
   if (!videoCodec) {
     throw new Error('No encodable video codec (need WebCodecs H.264/VP9 support)');
   }
@@ -207,14 +260,32 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
           return c;
         })();
 
-  const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null;
+  const ctx = canvas.getContext('2d', { alpha: false }) as
+    | OffscreenCanvasRenderingContext2D
+    | CanvasRenderingContext2D
+    | null;
   if (!ctx) throw new Error('Could not create bake canvas context');
+  // Full-res raster of scaled vectors; high quality when browsers resample
+  if ('imageSmoothingEnabled' in ctx) {
+    ctx.imageSmoothingEnabled = true;
+    if ('imageSmoothingQuality' in ctx) {
+      (ctx as CanvasRenderingContext2D).imageSmoothingQuality = 'high';
+    }
+  }
 
   // Paint in 1080p design space, scale up/down to the chosen output size
   const designW = EXPORT_DESIGN.width;
   const designH = EXPORT_DESIGN.height;
   const scaleX = width / designW;
   const scaleY = height / designH;
+
+  const ditherTile = createDitherTile();
+  let ditherPattern: CanvasPattern | null = null;
+  try {
+    ditherPattern = ctx.createPattern(ditherTile as CanvasImageSource, 'repeat');
+  } catch {
+    ditherPattern = null;
+  }
 
   const engine = new VisualizerEngine();
   engine.reset();
@@ -225,11 +296,14 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
     target,
   });
 
+  // keyFrameInterval ~0.5s helps seeking + limits error propagation on dark scenes
   const videoSource = new CanvasSource(canvas, {
     codec: videoCodec,
-    quality: QUALITY_HIGH,
+    quality: videoQuality,
     keyFrameInterval: 0.5,
     latencyMode: 'quality',
+    // Software path is often cleaner on dark frames (slower but offline bake is ok)
+    hardwareAcceleration: height >= 1440 ? 'no-preference' : 'prefer-software',
   });
   output.addVideoTrack(videoSource, { frameRate: fps });
 
@@ -271,9 +345,10 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
     audioSource.close();
   }
 
+  const mbps = (videoBitrate(width, height, fps) / 1_000_000).toFixed(0);
   report({
     phase: 'recording',
-    message: `Baking frames…${audioNote}`,
+    message: `Baking frames… · ${videoCodec.toUpperCase()} ~${mbps} Mbps${audioNote}`,
     elapsed: 0,
   });
 
@@ -304,6 +379,18 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
         processSongHits: true,
         showEmptyHint: false,
       });
+
+      // Subtle full-res dither: breaks flat near-black blocks without visible grain
+      if (ditherPattern) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.save();
+        ctx.globalAlpha = 0.035;
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.fillStyle = ditherPattern;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+      }
+
       prevTime = time;
 
       await videoSource.add(time, dt);
@@ -313,7 +400,7 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
           phase: 'recording',
           elapsed: time,
           duration,
-          message: `Baking ${i + 1}/${totalFrames} frames · ${resLabel}${audioNote}`,
+          message: `Baking ${i + 1}/${totalFrames} · ${resLabel} · ${videoCodec.toUpperCase()}${audioNote}`,
         });
         await yieldToUi();
       }

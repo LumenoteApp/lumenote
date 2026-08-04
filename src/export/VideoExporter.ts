@@ -106,15 +106,20 @@ export function downloadBlob(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function videoBitrate(width: number, height: number, fps: number): number {
+/**
+ * Target video bitrate for capture/bake.
+ * Dark particle visuals need more bits than "normal" footage to avoid
+ * macroblock squares in near-black areas.
+ */
+export function videoBitrate(width: number, height: number, fps: number): number {
   const pixels = width * height;
-  // Rough targets: 720p30 ~5, 1080p30 ~10, 1440p30 ~16, 4K30 ~35 Mbps
+  // Bake-friendly dark-scene targets (bits/s): 720p~8, 1080p~16, 1440p~28, 4K~55
   let base: number;
-  if (pixels >= 3840 * 2160) base = 35_000_000;
-  else if (pixels >= 2560 * 1440) base = 16_000_000;
-  else if (pixels >= 1920 * 1080) base = 10_000_000;
-  else base = 5_000_000;
-  return Math.round(base * (fps >= 60 ? 1.5 : 1));
+  if (pixels >= 3840 * 2160) base = 55_000_000;
+  else if (pixels >= 2560 * 1440) base = 28_000_000;
+  else if (pixels >= 1920 * 1080) base = 16_000_000;
+  else base = 8_000_000;
+  return Math.round(base * (fps >= 60 ? 1.35 : 1));
 }
 
 export class VideoExporter {

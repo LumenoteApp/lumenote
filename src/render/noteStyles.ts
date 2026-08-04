@@ -96,178 +96,152 @@ export function drawStyledNoteBar(opts: DrawNoteBarOpts) {
   const shine = notes.shine;
   const fx = notes.innerFx;
   const style = notes.style;
+  // Body stays vivid and nearly opaque so the black stage never shows through as a "gradient"
+  const bodyA = style === 'outline' ? alpha * 0.16 : Math.min(1, Math.max(0.9, alpha));
+
+  // Outer glow drawn separately (shadow on fills looks like dark edges)
+  if (glowStrength > 0.05 && style !== 'outline') {
+    ctx.save();
+    ctx.shadowColor = hexAlpha(color, 0.45 * glowStrength * (isActive ? 1 + pulse * 0.35 : 1));
+    ctx.shadowBlur = 14 * glowStrength * (isActive ? 1.3 + pulse * 0.4 : 1);
+    ctx.fillStyle = hexAlpha(color, 0.35 * bodyA);
+    roundedRect(ctx, x, y, w, h, radius);
+    ctx.fill();
+    ctx.restore();
+  }
 
   ctx.save();
-
-  // Outer soft glow (shared)
-  if (glowStrength > 0.05) {
-    ctx.shadowColor = hexAlpha(color, 0.5 * glowStrength * (isActive ? 1 + pulse * 0.4 : 1));
-    ctx.shadowBlur = 16 * glowStrength * (isActive ? 1.35 + pulse * 0.5 : 1);
-  } else {
-    ctx.shadowBlur = 0;
-  }
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
 
   // Clip to bar shape for inner FX
   roundedRect(ctx, x, y, w, h, radius);
   ctx.clip();
 
-  // Base fills stay bright: only lighten toward white for highlights, never darken.
+  // Flat solid body for every style (no top/bottom dark fade)
   switch (style) {
     case 'outline': {
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = hexAlpha(color, alpha * 0.14);
+      ctx.fillStyle = hexAlpha(color, bodyA);
       ctx.fillRect(x, y, w, h);
       break;
     }
     case 'glass': {
-      // Translucent but still colorful, with a bright top edge
-      const g = ctx.createLinearGradient(x, y, x, y + h);
-      g.addColorStop(0, hexAlpha(mixTowardWhite(color, 0.45), alpha * 0.72));
-      g.addColorStop(0.4, hexAlpha(color, alpha * 0.62));
-      g.addColorStop(1, hexAlpha(mixTowardWhite(color, 0.2), alpha * 0.68));
-      ctx.fillStyle = g;
+      ctx.fillStyle = hexAlpha(mixTowardWhite(color, 0.15), Math.min(1, bodyA * 0.92));
       ctx.fillRect(x, y, w, h);
       break;
     }
-    case 'gem': {
-      // Saturated body + bright diagonal facets (no muddy mid-tones)
-      ctx.fillStyle = hexAlpha(color, alpha);
-      ctx.fillRect(x, y, w, h);
-      const facet = ctx.createLinearGradient(x, y, x + w, y + h);
-      facet.addColorStop(0, `rgba(255,255,255,${0.38 * shine * alpha})`);
-      facet.addColorStop(0.28, `rgba(255,255,255,${0.08 * shine * alpha})`);
-      facet.addColorStop(0.45, 'rgba(255,255,255,0)');
-      facet.addColorStop(0.62, hexAlpha(mixTowardWhite(color, 0.55), 0.35 * alpha));
-      facet.addColorStop(0.78, 'rgba(255,255,255,0)');
-      facet.addColorStop(1, `rgba(255,255,255,${0.22 * shine * alpha})`);
-      ctx.fillStyle = facet;
-      ctx.fillRect(x, y, w, h);
-      // Facet lines (light only)
-      ctx.strokeStyle = `rgba(255,255,255,${0.28 * shine * alpha})`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x + w * 0.18, y);
-      ctx.lineTo(x + w * 0.48, y + h);
-      ctx.moveTo(x + w * 0.82, y);
-      ctx.lineTo(x + w * 0.52, y + h);
-      ctx.stroke();
-      break;
-    }
-    case 'crystal': {
-      // Clear ice: full color + bright vertical sheen
-      ctx.fillStyle = hexAlpha(mixTowardWhite(color, 0.12), alpha);
-      ctx.fillRect(x, y, w, h);
-      const sheen = ctx.createLinearGradient(x, y, x + w, y);
-      sheen.addColorStop(0, 'rgba(255,255,255,0)');
-      sheen.addColorStop(0.35, `rgba(255,255,255,${0.12 * shine * alpha})`);
-      sheen.addColorStop(0.5, `rgba(255,255,255,${0.42 * shine * alpha})`);
-      sheen.addColorStop(0.65, `rgba(255,255,255,${0.12 * shine * alpha})`);
-      sheen.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = sheen;
-      ctx.fillRect(x, y, w, h);
-      // Soft top frost
-      const frost = ctx.createLinearGradient(x, y, x, y + Math.min(h * 0.4, 18));
-      frost.addColorStop(0, `rgba(255,255,255,${0.28 * shine * alpha})`);
-      frost.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = frost;
-      ctx.fillRect(x, y, w, Math.min(h * 0.4, 18));
-      break;
-    }
-    case 'chrome': {
-      // Bright metal: color + white highlight bands (no dark strips)
-      ctx.fillStyle = hexAlpha(mixTowardWhite(color, 0.18), alpha);
-      ctx.fillRect(x, y, w, h);
-      const g = ctx.createLinearGradient(x, y, x + w, y);
-      g.addColorStop(0, `rgba(255,255,255,${0.08 * shine * alpha})`);
-      g.addColorStop(0.22, `rgba(255,255,255,${0.55 * shine * alpha})`);
-      g.addColorStop(0.38, `rgba(255,255,255,${0.1 * shine * alpha})`);
-      g.addColorStop(0.55, hexAlpha(mixTowardWhite(color, 0.35), 0.35 * alpha));
-      g.addColorStop(0.72, `rgba(255,255,255,${0.45 * shine * alpha})`);
-      g.addColorStop(1, `rgba(255,255,255,${0.12 * shine * alpha})`);
-      ctx.fillStyle = g;
-      ctx.fillRect(x, y, w, h);
-      break;
-    }
-    case 'pixel': {
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = hexAlpha(color, alpha);
-      ctx.fillRect(x, y, w, h);
-      // Light grid (not black)
-      const cell = Math.max(3, Math.min(6, w * 0.35));
-      ctx.strokeStyle = `rgba(255,255,255,${0.14 * alpha})`;
-      ctx.lineWidth = 1;
-      for (let py = y; py < y + h; py += cell) {
-        ctx.beginPath();
-        ctx.moveTo(x, py);
-        ctx.lineTo(x + w, py);
-        ctx.stroke();
-      }
-      for (let px = x; px < x + w; px += cell) {
-        ctx.beginPath();
-        ctx.moveTo(px, y);
-        ctx.lineTo(px, y + h);
-        ctx.stroke();
-      }
-      break;
-    }
+    case 'gem':
+    case 'crystal':
+    case 'chrome':
+    case 'pixel':
     case 'flame':
     case 'plasma':
     case 'solid':
     default: {
-      // Even, vivid fill with a light top lift only
-      const g = ctx.createLinearGradient(x, y, x, y + h);
-      g.addColorStop(0, hexAlpha(mixTowardWhite(color, 0.18), alpha));
-      g.addColorStop(0.35, hexAlpha(color, alpha));
-      g.addColorStop(1, hexAlpha(mixTowardWhite(color, 0.08), alpha));
-      ctx.fillStyle = g;
+      ctx.fillStyle = hexAlpha(color, bodyA);
       ctx.fillRect(x, y, w, h);
       break;
     }
   }
 
-  // Inner animated FX
-  if (fx > 0.05 && style === 'flame') {
-    drawFlameInner(ctx, x, y, w, h, color, alpha, time, pitch, fx, velocity);
-  } else if (fx > 0.05 && style === 'plasma') {
-    drawPlasmaInner(ctx, x, y, w, h, color, alpha, time, pitch, fx);
-  } else if (fx > 0.05 && (style === 'gem' || style === 'crystal')) {
-    drawSparkleInner(ctx, x, y, w, h, alpha, time, pitch, fx, shine);
-  } else if (fx > 0.08 && style === 'glass') {
-    // Soft caustic bands
-    ctx.globalCompositeOperation = 'lighter';
+  // Style overlays only brighten (lighter composite), never darken the body
+  ctx.globalCompositeOperation = 'lighter';
+
+  if (style === 'gem') {
+    const facet = ctx.createLinearGradient(x, y, x + w, y + h);
+    facet.addColorStop(0, `rgba(255,255,255,${0.42 * shine})`);
+    facet.addColorStop(0.3, `rgba(255,255,255,${0.1 * shine})`);
+    facet.addColorStop(0.5, 'rgba(255,255,255,0)');
+    facet.addColorStop(0.7, `rgba(255,255,255,${0.18 * shine})`);
+    facet.addColorStop(1, `rgba(255,255,255,${0.28 * shine})`);
+    ctx.fillStyle = facet;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = `rgba(255,255,255,${0.32 * shine})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.18, y);
+    ctx.lineTo(x + w * 0.48, y + h);
+    ctx.moveTo(x + w * 0.82, y);
+    ctx.lineTo(x + w * 0.52, y + h);
+    ctx.stroke();
+  } else if (style === 'crystal') {
+    const sheen = ctx.createLinearGradient(x, y, x + w, y);
+    sheen.addColorStop(0, 'rgba(255,255,255,0)');
+    sheen.addColorStop(0.45, `rgba(255,255,255,${0.15 * shine})`);
+    sheen.addColorStop(0.5, `rgba(255,255,255,${0.48 * shine})`);
+    sheen.addColorStop(0.55, `rgba(255,255,255,${0.15 * shine})`);
+    sheen.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sheen;
+    ctx.fillRect(x, y, w, h);
+  } else if (style === 'chrome') {
+    const g = ctx.createLinearGradient(x, y, x + w, y);
+    g.addColorStop(0, `rgba(255,255,255,${0.12 * shine})`);
+    g.addColorStop(0.22, `rgba(255,255,255,${0.55 * shine})`);
+    g.addColorStop(0.4, `rgba(255,255,255,${0.08 * shine})`);
+    g.addColorStop(0.65, `rgba(255,255,255,${0.4 * shine})`);
+    g.addColorStop(1, `rgba(255,255,255,${0.14 * shine})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(x, y, w, h);
+  } else if (style === 'glass') {
     for (let i = 0; i < 3; i++) {
       const t = (time * 0.6 + i * 0.4 + pitch * 0.02) % 1;
       const yy = y + h * t;
       const band = ctx.createLinearGradient(x, yy - 4, x, yy + 4);
       band.addColorStop(0, 'rgba(255,255,255,0)');
-      band.addColorStop(0.5, `rgba(255,255,255,${0.08 * fx * alpha})`);
+      band.addColorStop(0.5, `rgba(255,255,255,${0.1 * fx})`);
       band.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = band;
       ctx.fillRect(x, yy - 4, w, 8);
     }
+  } else if (style === 'pixel') {
     ctx.globalCompositeOperation = 'source-over';
+    const cell = Math.max(3, Math.min(6, w * 0.35));
+    ctx.strokeStyle = `rgba(255,255,255,${0.16 * bodyA})`;
+    ctx.lineWidth = 1;
+    for (let py = y; py < y + h; py += cell) {
+      ctx.beginPath();
+      ctx.moveTo(x, py);
+      ctx.lineTo(x + w, py);
+      ctx.stroke();
+    }
+    for (let px = x; px < x + w; px += cell) {
+      ctx.beginPath();
+      ctx.moveTo(px, y);
+      ctx.lineTo(px, y + h);
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'lighter';
   }
 
-  // Top shine strip
+  // Inner animated FX (additive only)
+  if (fx > 0.05 && style === 'flame') {
+    drawFlameInner(ctx, x, y, w, h, color, bodyA, time, pitch, fx, velocity);
+  } else if (fx > 0.05 && style === 'plasma') {
+    drawPlasmaInner(ctx, x, y, w, h, color, bodyA, time, pitch, fx);
+  } else if (fx > 0.05 && (style === 'gem' || style === 'crystal')) {
+    drawSparkleInner(ctx, x, y, w, h, bodyA, time, pitch, fx, shine);
+  }
+
+  // Optional top highlight (white only, additive)
   if (shine > 0.05 && style !== 'outline') {
-    const shineH = Math.min(h * 0.35, 10 + shine * 8);
+    const shineH = Math.min(h * 0.22, 8 + shine * 6);
     const sg = ctx.createLinearGradient(x, y, x, y + shineH);
-    sg.addColorStop(0, `rgba(255,255,255,${0.22 * shine * alpha})`);
+    sg.addColorStop(0, `rgba(255,255,255,${0.28 * shine})`);
     sg.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = sg;
     ctx.fillRect(x, y, w, shineH);
   }
 
-  // Active hot tip
+  // Active tip: bright, no shadow (shadow was reading as a black cap)
   if (isActive) {
-    ctx.shadowBlur = 20 * glowStrength * (1 + pulse * 0.4);
-    ctx.fillStyle = hexAlpha('#ffffff', 0.32 + pulse * 0.14);
-    ctx.fillRect(x, y + h - Math.min(12, h * 0.2), w, Math.min(12, h * 0.2));
+    ctx.fillStyle = `rgba(255,255,255,${0.28 + pulse * 0.18})`;
+    ctx.fillRect(x, y + h - Math.min(10, h * 0.18), w, Math.min(10, h * 0.18));
   }
 
+  ctx.globalCompositeOperation = 'source-over';
   ctx.restore();
 
-  // Border outside clip (bright edge, never muddy)
+  // Border outside clip
   if (borderA > 0.04) {
     ctx.save();
     ctx.shadowBlur = style === 'outline' ? 10 * glowStrength : 0;
@@ -276,18 +250,17 @@ export function drawStyledNoteBar(opts: DrawNoteBarOpts) {
     const edgeMix =
       style === 'outline' || style === 'gem' || style === 'crystal' || style === 'chrome'
         ? 0.55
-        : 0.25;
-    ctx.strokeStyle = hexAlpha(mixTowardWhite(color, edgeMix), borderA * (style === 'outline' ? 0.95 : 0.8));
-    ctx.lineWidth = style === 'outline' ? 1.5 + notes.border * 1.5 : 1 + notes.border * 1.2;
+        : 0.3;
+    ctx.strokeStyle = hexAlpha(mixTowardWhite(color, edgeMix), borderA * (style === 'outline' ? 0.95 : 0.85));
+    ctx.lineWidth = style === 'outline' ? 1.5 + notes.border * 1.5 : 1 + notes.border * 1.1;
     ctx.stroke();
     ctx.restore();
   }
 
-  // Outline-only double edge
   if (style === 'outline' && shine > 0.2) {
     ctx.save();
     roundedRect(ctx, x + 2, y + 2, w - 4, h - 4, Math.max(0, radius - 2));
-    ctx.strokeStyle = hexAlpha('#ffffff', 0.15 * shine * alpha);
+    ctx.strokeStyle = `rgba(255,255,255,${0.18 * shine})`;
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
