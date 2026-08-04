@@ -18,8 +18,17 @@ export type MidiNoteMessage = {
   rawVelocity: number; // 0-127
 };
 
+/** Control change (e.g. CC 64 sustain pedal). */
+export type MidiControlMessage = {
+  type: 'cc';
+  controller: number; // 0-127
+  value: number; // 0-127
+  channel: number; // 0-15
+};
+
 type Listener = () => void;
 type NoteListener = (msg: MidiNoteMessage) => void;
+type ControlListener = (msg: MidiControlMessage) => void;
 
 function portInfo(port: MIDIPort): MidiPortInfo {
   return {
@@ -38,6 +47,7 @@ export class MidiIO {
   private access: MIDIAccess | null = null;
   private listeners = new Set<Listener>();
   private noteListeners = new Set<NoteListener>();
+  private controlListeners = new Set<ControlListener>();
   private inputId: string | 'all' | null = null;
   private outputId: string | null = null;
   /** When true, midimessage handlers are attached and fire note events */
@@ -63,12 +73,23 @@ export class MidiIO {
     };
   }
 
+  onControl(fn: ControlListener) {
+    this.controlListeners.add(fn);
+    return () => {
+      this.controlListeners.delete(fn);
+    };
+  }
+
   private emit() {
     for (const fn of this.listeners) fn();
   }
 
   private emitNote(msg: MidiNoteMessage) {
     for (const fn of this.noteListeners) fn(msg);
+  }
+
+  private emitControl(msg: MidiControlMessage) {
+    for (const fn of this.controlListeners) fn(msg);
   }
 
   isSupported() {
@@ -260,9 +281,16 @@ export class MidiIO {
       return;
     }
 
-    // CC 64 sustain, CC 123 all notes off - forward when thru
-    if (cmd === 0xb0 && this.thru) {
-      this.sendRaw([status, data1, data2]);
+    // Control change (CC 64 sustain, CC 123 all notes off, …)
+    if (cmd === 0xb0) {
+      const msg: MidiControlMessage = {
+        type: 'cc',
+        controller: data1,
+        value: data2,
+        channel,
+      };
+      this.emitControl(msg);
+      if (this.thru) this.sendRaw([status, data1, data2]);
     }
   }
 

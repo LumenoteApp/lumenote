@@ -2,11 +2,26 @@ export type NoteEvent = {
   id: string;
   pitch: number;
   start: number;
+  /**
+   * Visual / key-down length (seconds). Does not include sustain pedal hold.
+   * Falling bars and “active key” use this.
+   */
   duration: number;
+  /**
+   * Audio sounding length (seconds), including sustain pedal extension.
+   * Defaults to `duration` when omitted.
+   */
+  soundDuration?: number;
   velocity: number;
   trackIndex: number;
   channel: number;
 };
+
+/** Audio gate length for a note (sustain-aware). */
+export function noteSoundDuration(n: NoteEvent): number {
+  const d = n.soundDuration ?? n.duration;
+  return Number.isFinite(d) && d > 0 ? d : n.duration;
+}
 
 export type TrackInfo = {
   index: number;

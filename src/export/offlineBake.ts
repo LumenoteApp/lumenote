@@ -148,11 +148,16 @@ async function renderOfflineAudio(
 
       for (const n of song.notes) {
         if (muted.has(n.trackIndex)) continue;
-        if (n.duration <= 0.01) continue;
+        // Prefer soundDuration (sustain-aware) when present
+        const fullDur =
+          typeof n.soundDuration === 'number' && n.soundDuration > 0
+            ? n.soundDuration
+            : n.duration;
+        if (fullDur <= 0.01) continue;
         const pitchName = Tone.Frequency(n.pitch, 'midi').toNote();
         const vel = n.velocity;
         const start = n.start;
-        const dur = n.duration;
+        const dur = fullDur;
         transport.schedule((time: number) => {
           try {
             if (typeof synth.triggerAttackRelease === 'function') {

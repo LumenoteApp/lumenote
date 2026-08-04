@@ -51,6 +51,10 @@ export class PlaybackEngine {
    * Released notes stay until pruned (scrolled off / aged out).
    */
   private liveVisual: LiveNoteState[] = [];
+  /** Finger still down (channel:pitch) - separate from pedal-held sounding notes. */
+  private liveFingers = new Set<string>();
+  /** Sustain pedal per MIDI channel (CC 64 ≥ 64). */
+  private sustainPedal = new Array<boolean>(16).fill(false);
 
   subscribe(fn: Listener) {
     this.listeners.add(fn);
@@ -91,6 +95,57 @@ export class PlaybackEngine {
   private clearLiveVisual() {
     this.liveHeld.clear();
     this.liveVisual = [];
+    this.liveFingers.clear();
+  }
+
+  private fingerKey(channel: number, pitch: number) {
+    return `${channel}:${pitch}`;
+  }
+
+  /**
+   * Live MIDI / CC 64 sustain pedal.
+   * While down, note-offs keep sounding and keep keyboard lights / bars active
+   * until the pedal lifts (same idea as QWERTY Space sustain).
+   */
+  setSustainPedal(channel: number, down: boolean) {
+    const ch = Math.min(15, Math.max(0, channel | 0));
+    const next = !!down;
+    if (this.sustainPedal[ch] === next) return;
+    this.sustainPedal[ch] = next;
+    if (!next) {
+      this.releasePedalHeldNotes(ch);
+    }
+  }
+
+  isSustainPedalDown(channel = 0) {
+    const ch = Math.min(15, Math.max(0, channel | 0));
+    return this.sustainPedal[ch] === true;
+  }
+
+  /** Release notes held only by the sustain pedal on this channel. */
+  private releasePedalHeldNotes(channel: number) {
+    const toRelease: number[] = [];
+    for (const [pitch, state] of this.liveHeld) {
+      if (state.channel !== channel) continue;
+      if (this.liveFingers.has(this.fingerKey(channel, pitch))) continue;
+      toRelease.push(pitch);
+    }
+    for (const pitch of toRelease) {
+      this.finishLiveNote(pitch, channel);
+    }
+  }
+
+  private finishLiveNote(pitch: number, channel: number) {
+    this.audio.noteOff(pitch, channel);
+    const held = this.liveHeld.get(pitch);
+    if (held && held.wallEnd === null) {
+      held.wallEnd = performance.now();
+    }
+    // Only delete if this entry is still the same channel (re-attack may replace)
+    const cur = this.liveHeld.get(pitch);
+    if (cur && cur.channel === channel) {
+      this.liveHeld.delete(pitch);
+    }
   }
 
   /**
@@ -110,6 +165,7 @@ export class PlaybackEngine {
       }
     }
 
+    this.liveFingers.add(this.fingerKey(ch, p));
     this.audio.noteOn(p, vel, ch);
     const now = performance.now();
 
@@ -143,19 +199,23 @@ export class PlaybackEngine {
     }
   }
 
-  liveNoteOff(pitch: number, _channel = 0) {
+  liveNoteOff(pitch: number, channel = 0) {
     const p = Math.min(127, Math.max(0, pitch | 0));
-    this.audio.noteOff(p, _channel);
-    const held = this.liveHeld.get(p);
-    if (held && held.wallEnd === null) {
-      held.wallEnd = performance.now();
+    const ch = Math.min(15, Math.max(0, channel | 0));
+    this.liveFingers.delete(this.fingerKey(ch, p));
+
+    // Sustain pedal: keep audio + visuals until pedal up
+    if (this.sustainPedal[ch]) {
+      return;
     }
-    this.liveHeld.delete(p);
+
+    this.finishLiveNote(p, ch);
   }
 
   /** Clear live held notes + rising bars (UI disconnect / panic). */
   releaseLiveNotes() {
     this.audio.releaseLiveNotes();
+    this.sustainPedal.fill(false);
     this.clearLiveVisual();
   }
 

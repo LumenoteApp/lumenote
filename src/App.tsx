@@ -179,13 +179,27 @@ export default function App() {
 
   // Live MIDI in → sound + visuals (input filter / thru handled in MidiIO)
   useEffect(() => {
-    return midiIO.onNote((msg) => {
+    const unsubNote = midiIO.onNote((msg) => {
       if (msg.type === 'noteon') {
         void playbackEngine.liveNoteOn(msg.pitch, msg.velocity, msg.channel);
       } else {
         playbackEngine.liveNoteOff(msg.pitch, msg.channel);
       }
     });
+    const unsubCc = midiIO.onControl((msg) => {
+      // CC 64 sustain pedal (≥64 = down)
+      if (msg.controller === 64) {
+        playbackEngine.setSustainPedal(msg.channel, msg.value >= 64);
+      }
+      // CC 120/123 all sound / all notes off - clear live + pedal
+      if (msg.controller === 120 || msg.controller === 123) {
+        playbackEngine.releaseLiveNotes();
+      }
+    });
+    return () => {
+      unsubNote();
+      unsubCc();
+    };
   }, []);
 
   // QWERTY piano listeners (prefs live in computerPiano singleton)

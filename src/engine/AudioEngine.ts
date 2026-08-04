@@ -1,4 +1,5 @@
 import type { NoteEvent, TrackInfo } from '../midi/types';
+import { noteSoundDuration } from '../midi/types';
 import {
   type BuiltinInstrumentId,
   type InstrumentId,
@@ -448,10 +449,13 @@ export class AudioEngine {
 
     for (const n of notes) {
       if (muted.has(n.trackIndex)) continue;
-      if (n.start + n.duration < fromTime) continue;
+      const soundDur = noteSoundDuration(n);
+      if (n.start + soundDur < fromTime) continue;
 
       const start = Math.max(0, n.start - fromTime);
-      const duration = n.start < fromTime ? n.duration - (fromTime - n.start) : n.duration;
+      // Audio gate includes sustain pedal; visuals use n.duration separately
+      const duration =
+        n.start < fromTime ? soundDur - (fromTime - n.start) : soundDur;
       if (duration <= 0.01) continue;
 
       const pitchMidi = n.pitch;

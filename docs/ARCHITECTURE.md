@@ -87,6 +87,7 @@ Input thru    ──► midiIO ──► selected MIDIOutput
 - **QWERTY:** Virtual Piano 1–m layout (`computerKeyboardMap.ts`); whites `1234567890qwertyuiopasdfghjklzxcvbnm` (1=C2 … m=C7); Shift hold = temp +1 transpose; ←/→ ±12, ↑/↓ ±1; Space inverts sustain from `sustainDefaultOn` (default true = VP style); prefs `lumenote-computer-piano-v2`.
 - **Touch/click:** Hit-test `buildKeyRects` on the drawn keyboard (`VisualizerCanvas`); multi-touch via pointer capture.
 - All live paths call `liveNoteOn/Off` only (no transport reanchor).
+- **Sustain:** live CC 64 → `playbackEngine.setSustainPedal` (holds audio + visuals until pedal up). MIDI files: `applySustainPedal` in `parseMidi.ts` extends note durations from CC 64. QWERTY Space is separate (ComputerPiano prefs).
 - Live bars grow from the hit line and scroll up after release (wall clock).
 - Chrome/Edge/Opera desktop for Web MIDI; QWERTY + on-screen piano work without it.
 
