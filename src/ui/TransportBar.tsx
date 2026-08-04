@@ -4,6 +4,7 @@ type Props = {
   currentTime: number;
   duration: number;
   playerOnly: boolean;
+  onHome: () => void;
   onOpen: () => void;
   onPlayPause: () => void;
   onStop: () => void;
@@ -24,6 +25,7 @@ export function TransportBar({
   currentTime,
   duration,
   playerOnly,
+  onHome,
   onOpen,
   onPlayPause,
   onStop,
@@ -33,6 +35,9 @@ export function TransportBar({
   return (
     <header className={`transport ${playerOnly ? 'transport-hidden' : ''}`}>
       <div className="transport-left">
+        <button type="button" className="btn compact-btn transport-home-btn" onClick={onHome}>
+          Home
+        </button>
         <button type="button" className="btn primary" onClick={onOpen}>
           Open MIDI
         </button>

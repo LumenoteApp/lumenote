@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { tracksAffectAudio } from '../src/engine/PlaybackEngine.ts';
 import { EXPORT_PRESETS } from '../src/export/VideoExporter.ts';
 import { BACKGROUND_PRESETS } from '../src/theme/backgroundPresets.ts';
+import { getProductStats } from '../src/theme/productStats.ts';
 import {
   BUILTIN_SCENE_PRESETS,
   countBuiltInPresets,
@@ -83,6 +84,14 @@ for (const s of newStyles) {
 
 // ── Export 4K still present ──
 assert.ok(EXPORT_PRESETS.some((p) => p.width === 3840 && p.height === 2160));
+
+// ── Homepage stats derive from the same registries ──
+const product = getProductStats();
+assert.equal(product.scenes, count);
+assert.ok(product.palettes >= 8);
+assert.ok(product.backgrounds >= 6);
+assert.ok(product.particles >= 8);
+assert.equal(product.exportMaxLabel, '4K');
 
 // ── Color-only track updates do not affect audio scheduling ──
 const a = [track({ index: 0, color: '#4FC3F7', muted: false, visible: true })];

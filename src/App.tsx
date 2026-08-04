@@ -65,6 +65,21 @@ function cloneSettings(s: VisualSettings): VisualSettings {
   };
 }
 
+type AppScreen = 'home' | 'app';
+
+function normalizePath(pathname: string): string {
+  const p = pathname.replace(/\/+$/, '');
+  return p === '' ? '/' : p;
+}
+
+function screenFromPath(pathname: string): AppScreen {
+  return normalizePath(pathname) === '/player' ? 'app' : 'home';
+}
+
+function pathForScreen(screen: AppScreen): string {
+  return screen === 'app' ? '/player' : '/';
+}
+
 export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -91,8 +106,10 @@ export default function App() {
   const [fsSidebarOpen, setFsSidebarOpen] = useState(false);
   const [chromeVisible, setChromeVisible] = useState(true);
   const hideChromeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Landing page vs studio */
-  const [screen, setScreen] = useState<'home' | 'app'>('home');
+  /** Landing (/) vs studio (/player) - synced with the URL */
+  const [screen, setScreen] = useState<AppScreen>(() =>
+    typeof window !== 'undefined' ? screenFromPath(window.location.pathname) : 'home',
+  );
   const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
   const [sf2Name, setSf2Name] = useState<string | null>(null);
   const [volume, setVolume] = useState(0.85);
@@ -473,14 +490,43 @@ export default function App() {
   // silence unused helper in prod tree
   void distanceRough;
 
-  const enterApp = useCallback(() => setScreen('app'), []);
+  const goToScreen = useCallback((next: AppScreen, mode: 'push' | 'replace' = 'push') => {
+    const path = pathForScreen(next);
+    const current = normalizePath(window.location.pathname);
+    if (current !== path) {
+      if (mode === 'replace') window.history.replaceState({ screen: next }, '', path);
+      else window.history.pushState({ screen: next }, '', path);
+    }
+    setScreen(next);
+  }, []);
+
+  // Keep React screen in sync with URL (back/forward + first load cleanup)
+  useEffect(() => {
+    const path = normalizePath(window.location.pathname);
+    if (path !== '/' && path !== '/player') {
+      window.history.replaceState({ screen: 'home' }, '', '/');
+      setScreen('home');
+    } else {
+      setScreen(screenFromPath(path));
+    }
+    const onPop = () => setScreen(screenFromPath(window.location.pathname));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const enterApp = useCallback(() => goToScreen('app'), [goToScreen]);
+
+  const goHome = useCallback(() => {
+    if (playerOnly) void exitPlayerOnly();
+    goToScreen('home');
+  }, [exitPlayerOnly, goToScreen, playerOnly]);
 
   const enterWithMidi = useCallback(
     (file: File) => {
-      setScreen('app');
+      goToScreen('app');
       void loadFile(file);
     },
-    [loadFile],
+    [goToScreen, loadFile],
   );
 
   const cancelExport = useCallback(() => {
@@ -802,6 +848,7 @@ export default function App() {
           currentTime={currentTime}
           duration={song?.duration ?? 0}
           playerOnly={playerOnly}
+          onHome={goHome}
           onOpen={() => fileInputRef.current?.click()}
           onPlayPause={() => void onPlayPause()}
           onStop={onStop}
@@ -865,6 +912,14 @@ export default function App() {
               >
                 <div className="player-chrome-bar">
                   <div className="player-chrome-left">
+                    <button
+                      type="button"
+                      className="btn compact-btn player-home-btn"
+                      onClick={goHome}
+                      title="Back to home"
+                    >
+                      Home
+                    </button>
                     <span className="player-title" title={song?.name ?? undefined}>
                       {song?.name ?? 'No file'}
                     </span>
@@ -979,27 +1034,34 @@ export default function App() {
                 <button
                   type="button"
                   className="brand-home-btn"
-                  onClick={() => {
-                    if (playerOnly) void exitPlayerOnly();
-                    setScreen('home');
-                  }}
+                  onClick={goHome}
                   title="Back to home"
                 >
                   <h1>Lumenote</h1>
-                  <p>{playerOnly ? 'Studio overlay' : 'Multi-track visualizer · Home'}</p>
+                  <p>{playerOnly ? 'Studio overlay' : 'Multi-track visualizer'}</p>
                 </button>
               </div>
-              {playerOnly && (
+              <div className="sidebar-brand-actions">
                 <button
                   type="button"
-                  className="btn icon sidebar-dismiss"
-                  onClick={() => setFsSidebarOpen(false)}
-                  title="Hide panel (B)"
-                  aria-label="Hide studio panel"
+                  className="btn compact-btn sidebar-home-btn"
+                  onClick={goHome}
+                  title="Back to home"
                 >
-                  ›
+                  Home
                 </button>
-              )}
+                {playerOnly && (
+                  <button
+                    type="button"
+                    className="btn icon sidebar-dismiss"
+                    onClick={() => setFsSidebarOpen(false)}
+                    title="Hide panel (B)"
+                    aria-label="Hide studio panel"
+                  >
+                    ›
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="sidebar-section">

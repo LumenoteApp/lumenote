@@ -172,10 +172,20 @@ export function createToneInstrument(Tone: any, id: BuiltinInstrumentId, output?
       return routeOut(s, output);
     }
     case 'pluck': {
-      const s = new Tone.PolySynth(Tone.PluckSynth, {
-        attackNoise: 1,
-        dampening: 4000,
-        resonance: 0.85,
+      // Tone.PluckSynth is not Monophonic, so PolySynth(PluckSynth) throws.
+      // Short-decay MonoSynth voices give a similar plucked attack with polyphony.
+      const s = new Tone.PolySynth(Tone.MonoSynth, {
+        oscillator: { type: 'triangle' },
+        filter: { Q: 3.5, type: 'lowpass', rolloff: -24 },
+        envelope: { attack: 0.001, decay: 0.28, sustain: 0.02, release: 0.18 },
+        filterEnvelope: {
+          attack: 0.001,
+          decay: 0.18,
+          sustain: 0.05,
+          release: 0.12,
+          baseFrequency: 420,
+          octaves: 3.2,
+        },
       });
       s.maxPolyphony = 32;
       s.volume.value = vol;

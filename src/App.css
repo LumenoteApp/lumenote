@@ -878,16 +878,33 @@
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(90deg, #4fc3f7, #f48fb1);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #f2f4f8;
 }
 
 .brand p {
   margin: 0.15rem 0 0;
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.4);
+}
+
+.sidebar-brand-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.sidebar-home-btn {
+  font-size: 0.78rem;
+}
+
+.transport-home-btn {
+  font-size: 0.8rem;
+}
+
+.player-home-btn {
+  font-size: 0.78rem;
+  flex-shrink: 0;
 }
 
 .panel {
