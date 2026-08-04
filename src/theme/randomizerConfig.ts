@@ -119,6 +119,7 @@ export function randomizeContinuousTargets(
       glowStrength: v.glowStrength,
       keyboardHeight: v.keyboardHeight,
       hitRailIntensity: v.hitRailIntensity,
+      hitRailEnergy: v.hitRailEnergy,
       notes: {
         ...next.notes,
         border: n.border,
@@ -230,6 +231,16 @@ export function randomizeDiscreteFlip(
     };
   }
 
+  if (cats.visuals && Math.random() < 0.45) {
+    const v = randomizeVisuals();
+    next = {
+      ...next,
+      hitRailStyle: v.hitRailStyle,
+      hitRailEnergy: v.hitRailEnergy,
+      showHitRail: true,
+    };
+  }
+
   if (cats.background && Math.random() < 0.7) {
     const bg = randomizeBackground();
     next = {
@@ -335,6 +346,8 @@ export function lerpSettings(
       glowStrength: lerp(from.glowStrength, to.glowStrength, e),
       keyboardHeight: lerp(from.keyboardHeight, to.keyboardHeight, e),
       hitRailIntensity: lerp(from.hitRailIntensity, to.hitRailIntensity, e),
+      hitRailEnergy: lerp(from.hitRailEnergy ?? 0.55, to.hitRailEnergy ?? 0.55, e),
+      hitRailStyle: k > 0.85 ? (to.hitRailStyle ?? from.hitRailStyle) : from.hitRailStyle,
       backgroundColor: to.backgroundColor !== from.backgroundColor && k > 0.92
         ? to.backgroundColor
         : from.backgroundColor,

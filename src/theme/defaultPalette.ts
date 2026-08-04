@@ -52,4 +52,6 @@ export const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
   keyboardHeight: 200,
   showHitRail: true,
   hitRailIntensity: 0.85,
+  hitRailStyle: 'soft',
+  hitRailEnergy: 0.55,
 };

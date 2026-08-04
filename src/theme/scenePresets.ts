@@ -2,6 +2,10 @@ import type { NoteStyleParams, VisualSettings } from '../midi/types';
 import type { InstrumentId } from '../engine/instruments';
 import { DEFAULT_VISUAL_SETTINGS } from './defaultPalette';
 import { normalizeColorSettings } from './colorPresets';
+import {
+  normalizeHitRailEnergy,
+  normalizeHitRailStyle,
+} from './hitRailPresets';
 import { getNoteStylePreset, normalizeNoteStyle } from './notePresets';
 import { getPreset as getParticlePreset } from './particlePresets';
 
@@ -118,6 +122,12 @@ export function hydrateSceneData(raw: Partial<ScenePresetData> | null | undefine
         typeof s.noteStylePresetId === 'string'
           ? s.noteStylePresetId
           : DEFAULT_VISUAL_SETTINGS.noteStylePresetId,
+      hitRailStyle: normalizeHitRailStyle(
+        s.hitRailStyle ?? DEFAULT_VISUAL_SETTINGS.hitRailStyle,
+      ),
+      hitRailEnergy: normalizeHitRailEnergy(
+        s.hitRailEnergy ?? DEFAULT_VISUAL_SETTINGS.hitRailEnergy,
+      ),
       colors: normalizeColorSettings(s.colors ?? DEFAULT_VISUAL_SETTINGS.colors),
     },
   };
@@ -308,6 +318,9 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'chiptune',
     volume: 0.8,
     settings: {
+      hitRailStyle: 'electric',
+      hitRailEnergy: 1.05,
+      hitRailIntensity: 1.05,
       ...noteLook('outline', { border: 1, shine: 0.6, innerFx: 0.4 }),
       particlePresetId: 'neon',
       particles: { ...neon },
@@ -345,13 +358,15 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
         trackBlend: 0.1,
       },
       backgroundColor: '#05010a',
-      hitRailIntensity: 1.05,
     },
   }),
   makeBuiltIn('bass-radar', 'Bass Radar', 'Scan sweep locked to heavy bass hits', 'rave', {
     instrumentId: 'bass',
     volume: 0.9,
     settings: {
+      hitRailStyle: 'shock',
+      hitRailEnergy: 1.1,
+      hitRailIntensity: 1.1,
       ...noteLook('plasma', { border: 0.65, shine: 0.55, innerFx: 1.2 }),
       particlePresetId: 'neon',
       particles: { ...neon, density: 1.45, trail: 0.85 },
@@ -388,13 +403,15 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
         trackBlend: 0.05,
       },
       backgroundColor: '#020608',
-      hitRailIntensity: 1.1,
     },
   }),
   makeBuiltIn('laser-storm', 'Laser Storm', 'Rain streaks + neon punches', 'rave', {
     instrumentId: 'chip_lead',
     volume: 0.84,
     settings: {
+      hitRailStyle: 'laser',
+      hitRailEnergy: 0.85,
+      hitRailIntensity: 1.05,
       ...noteLook('outline', { border: 1, shine: 0.75, innerFx: 0.5, roundness: 0.4 }),
       particlePresetId: 'neon',
       particles: { ...neon, density: 1.5, secondaryBurst: 1 },
@@ -431,7 +448,6 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
         trackBlend: 0,
       },
       backgroundColor: '#080018',
-      hitRailIntensity: 1.05,
     },
   }),
   makeBuiltIn('inferno', 'Inferno', 'Heavy fire particles and rising columns', 'rave', {
@@ -483,6 +499,9 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'pad',
     volume: 0.75,
     settings: {
+      hitRailStyle: 'aurora',
+      hitRailEnergy: 0.85,
+      hitRailIntensity: 0.65,
       ...noteLook('glass', { border: 0.5, shine: 0.9, innerFx: 0.4, roundness: 0.8 }),
       particlePresetId: 'aurora',
       particles: { ...aurora },
@@ -520,7 +539,6 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
         trackBlend: 0.25,
       },
       backgroundColor: '#060a10',
-      hitRailIntensity: 0.55,
     },
   }),
   makeBuiltIn('soft-rain', 'Soft Rain', 'Gentle falling streaks over a pad', 'chill', {
@@ -875,6 +893,9 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'epiano',
     volume: 0.82,
     settings: {
+      hitRailStyle: 'wave',
+      hitRailEnergy: 0.9,
+      hitRailIntensity: 0.95,
       ...noteLook('chrome', { border: 0.5, shine: 1, innerFx: 0.45 }),
       particlePresetId: 'crystal',
       particles: { ...crystal },
@@ -911,7 +932,6 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
         trackBlend: 0.2,
       },
       backgroundColor: '#04060e',
-      hitRailIntensity: 0.95,
     },
   }),
   makeBuiltIn('arcade-rain', 'Arcade Rain', 'Chip lead under digital rain', 'retro', {
@@ -1049,6 +1069,9 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
     instrumentId: 'pad',
     volume: 0.8,
     settings: {
+      hitRailStyle: 'storm',
+      hitRailEnergy: 1.1,
+      hitRailIntensity: 0.95,
       ...noteLook('plasma', { border: 0.6, shine: 0.75, innerFx: 1.15 }),
       particlePresetId: 'stardust',
       particles: { ...stardust, density: 1.25, trail: 0.7 },
@@ -1085,7 +1108,6 @@ export const BUILTIN_SCENE_PRESETS: ScenePreset[] = [
         trackBlend: 0.1,
       },
       backgroundColor: '#01040c',
-      hitRailIntensity: 0.85,
     },
   }),
   makeBuiltIn('nebula-scan', 'Nebula Scan', 'Radar rings through purple gas', 'cosmic', {

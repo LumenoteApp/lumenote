@@ -1,6 +1,7 @@
 import type {
   BackgroundParams,
   BackgroundStyle,
+  HitRailStyleId,
   MusicReactiveParams,
   NoteStyleParams,
   ParticleParams,
@@ -8,6 +9,7 @@ import type {
 } from '../midi/types';
 import type { ColorMode, ColorSettings } from './colorPresets';
 import { COLOR_MODE_PRESETS, TRACK_PALETTE_PRESETS } from './colorPresets';
+import { HIT_RAIL_STYLE_PRESETS } from './hitRailPresets';
 import { NOTE_STYLE_PRESETS } from './notePresets';
 
 export function rand(min: number, max: number) {
@@ -127,9 +129,12 @@ export type VisualCoreRandom = Pick<
   | 'keyboardHeight'
   | 'showHitRail'
   | 'hitRailIntensity'
+  | 'hitRailStyle'
+  | 'hitRailEnergy'
 >;
 
 export function randomizeVisuals(): VisualCoreRandom {
+  const rail = pick(HIT_RAIL_STYLE_PRESETS);
   return {
     pixelsPerSecond: Math.round(rand(160, 480)),
     noteOpacity: snap(rand(0.45, 1)),
@@ -137,8 +142,10 @@ export function randomizeVisuals(): VisualCoreRandom {
     backgroundColor: randomBgBaseColor(),
     showKeyboard: Math.random() > 0.12,
     keyboardHeight: Math.round(rand(140, 240) / 4) * 4,
-    showHitRail: Math.random() > 0.15,
+    showHitRail: Math.random() > 0.12,
     hitRailIntensity: snap(rand(0.35, 1.15)),
+    hitRailStyle: rail.id as HitRailStyleId,
+    hitRailEnergy: snap(rand(0.25, 1.2)),
   };
 }
 

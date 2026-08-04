@@ -111,59 +111,79 @@ export function drawStyledNoteBar(opts: DrawNoteBarOpts) {
   roundedRect(ctx, x, y, w, h, radius);
   ctx.clip();
 
-  // Base fill by style
+  // Base fills stay bright: only lighten toward white for highlights, never darken.
   switch (style) {
     case 'outline': {
       ctx.shadowBlur = 0;
-      ctx.fillStyle = hexAlpha(color, alpha * 0.12);
+      ctx.fillStyle = hexAlpha(color, alpha * 0.14);
       ctx.fillRect(x, y, w, h);
       break;
     }
     case 'glass': {
-      const g = ctx.createLinearGradient(x, y, x + w, y + h);
-      g.addColorStop(0, hexAlpha(mixTowardWhite(color, 0.35), alpha * 0.35));
-      g.addColorStop(0.45, hexAlpha(color, alpha * 0.45));
-      g.addColorStop(1, hexAlpha(color, alpha * 0.55));
+      // Translucent but still colorful, with a bright top edge
+      const g = ctx.createLinearGradient(x, y, x, y + h);
+      g.addColorStop(0, hexAlpha(mixTowardWhite(color, 0.45), alpha * 0.72));
+      g.addColorStop(0.4, hexAlpha(color, alpha * 0.62));
+      g.addColorStop(1, hexAlpha(mixTowardWhite(color, 0.2), alpha * 0.68));
       ctx.fillStyle = g;
       ctx.fillRect(x, y, w, h);
       break;
     }
     case 'gem': {
-      const g = ctx.createLinearGradient(x, y, x + w, y + h);
-      g.addColorStop(0, hexAlpha(mixTowardWhite(color, 0.55), alpha));
-      g.addColorStop(0.35, hexAlpha(color, alpha));
-      g.addColorStop(0.55, hexAlpha(mixTowardWhite(color, 0.15), alpha * 0.95));
-      g.addColorStop(0.75, hexAlpha(color, alpha * 0.85));
-      g.addColorStop(1, hexAlpha(mixTowardWhite(color, 0.4), alpha * 0.9));
-      ctx.fillStyle = g;
+      // Saturated body + bright diagonal facets (no muddy mid-tones)
+      ctx.fillStyle = hexAlpha(color, alpha);
       ctx.fillRect(x, y, w, h);
-      // Facet lines
-      ctx.strokeStyle = hexAlpha('#ffffff', alpha * 0.22 * shine);
+      const facet = ctx.createLinearGradient(x, y, x + w, y + h);
+      facet.addColorStop(0, `rgba(255,255,255,${0.38 * shine * alpha})`);
+      facet.addColorStop(0.28, `rgba(255,255,255,${0.08 * shine * alpha})`);
+      facet.addColorStop(0.45, 'rgba(255,255,255,0)');
+      facet.addColorStop(0.62, hexAlpha(mixTowardWhite(color, 0.55), 0.35 * alpha));
+      facet.addColorStop(0.78, 'rgba(255,255,255,0)');
+      facet.addColorStop(1, `rgba(255,255,255,${0.22 * shine * alpha})`);
+      ctx.fillStyle = facet;
+      ctx.fillRect(x, y, w, h);
+      // Facet lines (light only)
+      ctx.strokeStyle = `rgba(255,255,255,${0.28 * shine * alpha})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x + w * 0.15, y);
-      ctx.lineTo(x + w * 0.45, y + h);
-      ctx.moveTo(x + w * 0.85, y);
-      ctx.lineTo(x + w * 0.55, y + h);
+      ctx.moveTo(x + w * 0.18, y);
+      ctx.lineTo(x + w * 0.48, y + h);
+      ctx.moveTo(x + w * 0.82, y);
+      ctx.lineTo(x + w * 0.52, y + h);
       ctx.stroke();
       break;
     }
     case 'crystal': {
-      const g = ctx.createLinearGradient(x, y, x, y + h);
-      g.addColorStop(0, hexAlpha(mixTowardWhite(color, 0.65), alpha * 0.9));
-      g.addColorStop(0.5, hexAlpha(color, alpha * 0.75));
-      g.addColorStop(1, hexAlpha(mixTowardWhite(color, 0.25), alpha * 0.85));
-      ctx.fillStyle = g;
+      // Clear ice: full color + bright vertical sheen
+      ctx.fillStyle = hexAlpha(mixTowardWhite(color, 0.12), alpha);
       ctx.fillRect(x, y, w, h);
+      const sheen = ctx.createLinearGradient(x, y, x + w, y);
+      sheen.addColorStop(0, 'rgba(255,255,255,0)');
+      sheen.addColorStop(0.35, `rgba(255,255,255,${0.12 * shine * alpha})`);
+      sheen.addColorStop(0.5, `rgba(255,255,255,${0.42 * shine * alpha})`);
+      sheen.addColorStop(0.65, `rgba(255,255,255,${0.12 * shine * alpha})`);
+      sheen.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = sheen;
+      ctx.fillRect(x, y, w, h);
+      // Soft top frost
+      const frost = ctx.createLinearGradient(x, y, x, y + Math.min(h * 0.4, 18));
+      frost.addColorStop(0, `rgba(255,255,255,${0.28 * shine * alpha})`);
+      frost.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = frost;
+      ctx.fillRect(x, y, w, Math.min(h * 0.4, 18));
       break;
     }
     case 'chrome': {
+      // Bright metal: color + white highlight bands (no dark strips)
+      ctx.fillStyle = hexAlpha(mixTowardWhite(color, 0.18), alpha);
+      ctx.fillRect(x, y, w, h);
       const g = ctx.createLinearGradient(x, y, x + w, y);
-      g.addColorStop(0, hexAlpha(mixTowardWhite(color, 0.15), alpha));
-      g.addColorStop(0.25, hexAlpha(mixTowardWhite(color, 0.75), alpha));
-      g.addColorStop(0.5, hexAlpha(color, alpha));
-      g.addColorStop(0.75, hexAlpha(mixTowardWhite(color, 0.55), alpha));
-      g.addColorStop(1, hexAlpha(mixTowardWhite(color, 0.1), alpha));
+      g.addColorStop(0, `rgba(255,255,255,${0.08 * shine * alpha})`);
+      g.addColorStop(0.22, `rgba(255,255,255,${0.55 * shine * alpha})`);
+      g.addColorStop(0.38, `rgba(255,255,255,${0.1 * shine * alpha})`);
+      g.addColorStop(0.55, hexAlpha(mixTowardWhite(color, 0.35), 0.35 * alpha));
+      g.addColorStop(0.72, `rgba(255,255,255,${0.45 * shine * alpha})`);
+      g.addColorStop(1, `rgba(255,255,255,${0.12 * shine * alpha})`);
       ctx.fillStyle = g;
       ctx.fillRect(x, y, w, h);
       break;
@@ -172,9 +192,9 @@ export function drawStyledNoteBar(opts: DrawNoteBarOpts) {
       ctx.shadowBlur = 0;
       ctx.fillStyle = hexAlpha(color, alpha);
       ctx.fillRect(x, y, w, h);
-      // Internal pixel grid
+      // Light grid (not black)
       const cell = Math.max(3, Math.min(6, w * 0.35));
-      ctx.strokeStyle = hexAlpha('#000000', 0.22 * alpha);
+      ctx.strokeStyle = `rgba(255,255,255,${0.14 * alpha})`;
       ctx.lineWidth = 1;
       for (let py = y; py < y + h; py += cell) {
         ctx.beginPath();
@@ -194,10 +214,11 @@ export function drawStyledNoteBar(opts: DrawNoteBarOpts) {
     case 'plasma':
     case 'solid':
     default: {
+      // Even, vivid fill with a light top lift only
       const g = ctx.createLinearGradient(x, y, x, y + h);
-      g.addColorStop(0, hexAlpha(color, alpha * 0.75));
-      g.addColorStop(0.5, hexAlpha(color, alpha));
-      g.addColorStop(1, hexAlpha(color, alpha * 0.9));
+      g.addColorStop(0, hexAlpha(mixTowardWhite(color, 0.18), alpha));
+      g.addColorStop(0.35, hexAlpha(color, alpha));
+      g.addColorStop(1, hexAlpha(mixTowardWhite(color, 0.08), alpha));
       ctx.fillStyle = g;
       ctx.fillRect(x, y, w, h);
       break;
@@ -246,18 +267,17 @@ export function drawStyledNoteBar(opts: DrawNoteBarOpts) {
 
   ctx.restore();
 
-  // Border outside clip (clean edge)
+  // Border outside clip (bright edge, never muddy)
   if (borderA > 0.04) {
     ctx.save();
     ctx.shadowBlur = style === 'outline' ? 10 * glowStrength : 0;
     ctx.shadowColor = hexAlpha(color, 0.45 * glowStrength);
     roundedRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, Math.max(0, radius - 0.5));
-    ctx.strokeStyle = hexAlpha(
-      style === 'outline' || style === 'gem' || style === 'crystal'
-        ? mixTowardWhite(color, 0.35)
-        : color,
-      borderA * (style === 'outline' ? 0.95 : 0.75),
-    );
+    const edgeMix =
+      style === 'outline' || style === 'gem' || style === 'crystal' || style === 'chrome'
+        ? 0.55
+        : 0.25;
+    ctx.strokeStyle = hexAlpha(mixTowardWhite(color, edgeMix), borderA * (style === 'outline' ? 0.95 : 0.8));
     ctx.lineWidth = style === 'outline' ? 1.5 + notes.border * 1.5 : 1 + notes.border * 1.2;
     ctx.stroke();
     ctx.restore();

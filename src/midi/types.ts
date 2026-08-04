@@ -156,6 +156,16 @@ export type NoteStyleParams = {
   roundness: number;
 };
 
+export type HitRailStyleId =
+  | 'soft'
+  | 'electric'
+  | 'wave'
+  | 'shock'
+  | 'spark'
+  | 'laser'
+  | 'storm'
+  | 'aurora';
+
 export type VisualSettings = {
   pixelsPerSecond: number;
   noteOpacity: number;
@@ -177,4 +187,8 @@ export type VisualSettings = {
   /** Impact rail above the keyboard (reactive hit line) */
   showHitRail: boolean;
   hitRailIntensity: number;
+  /** Rail look: soft blooms, electric cloud, waves, etc. */
+  hitRailStyle: HitRailStyleId;
+  /** Secondary rail FX amount (arcs, clouds, sparks) 0-1.4 */
+  hitRailEnergy: number;
 };

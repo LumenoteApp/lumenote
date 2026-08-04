@@ -12,6 +12,10 @@ import { MusicReactiveField, analyzeMusicEnergy } from './MusicReactiveField';
 import { drawStyledNoteBar } from './noteStyles';
 import { normalizeColorSettings, resolveNoteColor } from '../theme/colorPresets';
 import { normalizeNoteStyle } from '../theme/notePresets';
+import {
+  normalizeHitRailEnergy,
+  normalizeHitRailStyle,
+} from '../theme/hitRailPresets';
 
 const DEFAULT_KEYBOARD_H = 200;
 const MIN_KEYBOARD_H = 100;
@@ -354,7 +358,15 @@ export class VisualizerEngine {
         color: info.color,
         velocity: info.velocity,
       }));
-      this.hitRail.draw(ctx, w, hitY, activeRail, s.hitRailIntensity);
+      this.hitRail.draw(
+        ctx,
+        w,
+        hitY,
+        activeRail,
+        s.hitRailIntensity,
+        normalizeHitRailStyle(s.hitRailStyle),
+        normalizeHitRailEnergy(s.hitRailEnergy),
+      );
     }
 
     if (s.particlesEnabled && particleParams.sustainEmit > 0 && activeKeys.size > 0) {

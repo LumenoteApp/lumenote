@@ -7,6 +7,7 @@ import type {
 } from '../midi/types';
 import { BACKGROUND_PRESETS } from '../theme/backgroundPresets';
 import { MUSIC_REACTIVE_PRESETS } from '../theme/musicReactivePresets';
+import { HIT_RAIL_STYLE_PRESETS } from '../theme/hitRailPresets';
 import { NOTE_STYLE_PRESETS } from '../theme/notePresets';
 import { PARTICLE_PRESETS } from '../theme/particlePresets';
 import {
@@ -352,6 +353,32 @@ export function SettingsPanel({ settings, onChange }: Props) {
           <span>Impact rail</span>
         </label>
 
+        <div className={`field ${!settings.showHitRail ? 'is-disabled' : ''}`} style={{ marginTop: '0.4rem' }}>
+          <span className="field-label">Rail style</span>
+          <div className="preset-grid" style={{ marginTop: '0.35rem' }}>
+            {HIT_RAIL_STYLE_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`preset-chip ${settings.hitRailStyle === p.id ? 'active' : ''}`}
+                title={p.blurb}
+                disabled={!settings.showHitRail}
+                onClick={() =>
+                  onChange({
+                    ...settings,
+                    hitRailStyle: p.id,
+                    hitRailEnergy: p.energy,
+                    showHitRail: true,
+                  })
+                }
+              >
+                <span className="preset-name">{p.name}</span>
+                <span className="preset-blurb">{p.blurb}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <label className="field compact">
           <span className="field-label">
             Rail intensity
@@ -365,6 +392,22 @@ export function SettingsPanel({ settings, onChange }: Props) {
             value={settings.hitRailIntensity}
             disabled={!settings.showHitRail}
             onChange={(e) => set('hitRailIntensity', Number(e.target.value))}
+          />
+        </label>
+
+        <label className="field compact">
+          <span className="field-label">
+            Rail energy
+            <em>{(settings.hitRailEnergy ?? 0.55).toFixed(2)}</em>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1.4}
+            step={0.05}
+            value={settings.hitRailEnergy ?? 0.55}
+            disabled={!settings.showHitRail}
+            onChange={(e) => set('hitRailEnergy', Number(e.target.value))}
           />
         </label>
 
