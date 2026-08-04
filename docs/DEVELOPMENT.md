@@ -63,7 +63,7 @@ Spessa must use a **native** `AudioContext` (see `AudioEngine.getNativeAudioCont
 | Bake | `src/export/offlineBake.ts` | WebCodecs + Mediabunny; dynamic import |
 | Realtime | `src/export/VideoExporter.ts` | MediaRecorder + canvas stream |
 
-UI: `src/ui/ExportPanel.tsx`. Prefer bake for smooth 1080p.
+UI: `src/ui/ExportPanel.tsx`. Prefer bake for smooth 720p–4K (design layout 1080p, scaled).
 
 ## Git / GitHub
 

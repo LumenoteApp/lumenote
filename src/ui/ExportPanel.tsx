@@ -4,9 +4,11 @@ import {
   type ExportMode,
   type ExportProgress,
   type ExportSettings,
+  EXPORT_PRESETS,
   canBakeOffline,
   pickRecorderMime,
   exportExtension,
+  formatResolution,
 } from '../export/VideoExporter';
 
 type Props = {
@@ -49,13 +51,17 @@ export function ExportPanel({
 
   const setFps = (fps: ExportFps) => onChange({ ...settings, fps });
   const setMode = (mode: ExportMode) => onChange({ ...settings, mode });
+  const setResolution = (width: number, height: number) =>
+    onChange({ ...settings, width, height });
+
+  const isHeavy = settings.width * settings.height >= 2560 * 1440;
 
   return (
     <section className="panel export-panel">
       <h2>Export video</h2>
       <p className="muted small">
         {settings.mode === 'bake'
-          ? 'Offline bake: every frame is computed at exact fps - smooth 1080p, no dropped frames.'
+          ? 'Offline bake: every frame is computed at exact fps - smooth MP4, no dropped frames.'
           : 'Realtime capture: plays the song live (may drop frames if the PC is busy).'}
       </p>
 
@@ -91,10 +97,27 @@ export function ExportPanel({
         </p>
       )}
 
-      <div className="export-row">
+      <div className="export-row export-row-stack">
         <span className="field-label">Resolution</span>
-        <span className="export-value">1080p (1920×1080)</span>
+        <div className="export-fps export-res">
+          {EXPORT_PRESETS.map((p) => {
+            const active = settings.width === p.width && settings.height === p.height;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className={`btn compact-btn ${active ? 'primary' : ''}`}
+                disabled={busy}
+                onClick={() => setResolution(p.width, p.height)}
+                title={`${p.width}×${p.height}`}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
+      <p className="muted small export-res-meta">{formatResolution(settings.width, settings.height)}</p>
 
       <div className="export-row">
         <span className="field-label">Frame rate</span>
@@ -131,8 +154,12 @@ export function ExportPanel({
       <p className="muted small export-eta">
         {hasSong
           ? settings.mode === 'bake'
-            ? `~${formatDur(duration)} song · bake can be faster or slower than realtime`
-            : `Length ~${formatDur(duration)} · capture runs in realtime`
+            ? `~${formatDur(duration)} song · bake can be faster or slower than realtime${
+                isHeavy ? ' · 1440p/4K is heavier on CPU/GPU' : ''
+              }`
+            : `Length ~${formatDur(duration)} · capture runs in realtime${
+                isHeavy ? ' · prefer Bake for 1440p/4K' : ''
+              }`
           : 'Load a MIDI file to export'}
       </p>
 

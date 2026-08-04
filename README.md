@@ -14,7 +14,7 @@
 
 <p align="center">
   <strong>Multi-track MIDI piano visualizer in the browser.</strong><br />
-  Falling notes · particles · live MIDI · SF2 · offline 1080p bake export.<br />
+  Falling notes · particles · live MIDI · SF2 · offline bake export up to 4K.<br />
   No watermark. No account. No install.
 </p>
 
@@ -49,7 +49,7 @@ Lumenote is a **local-first web app** you own: load a multi-track MIDI, paint th
 | **Scene presets** | Save full looks · built-in lookbooks |
 | **Sound** | Piano, chiptune, pads, GM, **SF2/SF3** load |
 | **Live MIDI** | Hardware keyboard in + optional MIDI out / thru |
-| **Video export** | **Bake** smooth 1080p 30/60 MP4, or realtime capture |
+| **Video export** | **Bake** smooth 720p–4K 30/60 MP4, or realtime capture |
 
 ---
 
@@ -80,7 +80,7 @@ Lumenote is a **local-first web app** you own: load a multi-track MIDI, paint th
 ### Video export
 - **Bake (default):** offline stepped frames at exact fps - no dropped frames  
 - **Realtime:** MediaRecorder capture while the song plays  
-- 1080p · 30 or 60 fps · optional audio · downloads MP4 (bake) or WebM/MP4 (realtime)  
+- 720p / 1080p / 1440p / 4K · 30 or 60 fps · optional audio · MP4 (bake) or WebM/MP4 (realtime)  
 - Chrome / Edge recommended for bake and SF2  
 
 ### Workflow
@@ -167,7 +167,7 @@ public/
 
 ## Roadmap ideas
 
-- [x] Offline bake export (smooth 1080p 30/60 MP4)  
+- [x] Offline bake export (smooth 720p–4K 30/60 MP4)  
 - [x] Realtime HD video capture (MediaRecorder)  
 - [x] Live Web MIDI keyboard input + MIDI out  
 - [x] Palette scatter color modes  

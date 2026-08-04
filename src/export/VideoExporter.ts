@@ -9,6 +9,36 @@ export type ExportFps = 30 | 60;
 /** bake = offline smooth; realtime = live MediaRecorder capture */
 export type ExportMode = 'bake' | 'realtime';
 
+/** Logical layout size for all export resolutions (composition is scaled to output). */
+export const EXPORT_DESIGN = { width: 1920, height: 1080 } as const;
+
+export type ExportPresetId = '720p' | '1080p' | '1440p' | '4k';
+
+export type ExportPreset = {
+  id: ExportPresetId;
+  /** Short button label */
+  label: string;
+  width: number;
+  height: number;
+};
+
+/** 16:9 presets through 4K UHD */
+export const EXPORT_PRESETS: readonly ExportPreset[] = [
+  { id: '720p', label: '720p', width: 1280, height: 720 },
+  { id: '1080p', label: '1080p', width: 1920, height: 1080 },
+  { id: '1440p', label: '1440p', width: 2560, height: 1440 },
+  { id: '4k', label: '4K', width: 3840, height: 2160 },
+] as const;
+
+export function findExportPreset(width: number, height: number): ExportPreset | undefined {
+  return EXPORT_PRESETS.find((p) => p.width === width && p.height === height);
+}
+
+export function formatResolution(width: number, height: number): string {
+  const preset = findExportPreset(width, height);
+  return preset ? `${preset.label} (${width}×${height})` : `${width}×${height}`;
+}
+
 export type ExportSettings = {
   width: number;
   height: number;
@@ -78,8 +108,12 @@ export function downloadBlob(blob: Blob, filename: string) {
 
 function videoBitrate(width: number, height: number, fps: number): number {
   const pixels = width * height;
-  // Rough: 1080p30 ~ 8 Mbps, 1080p60 ~ 12 Mbps
-  const base = pixels >= 1920 * 1080 ? 8_000_000 : 4_000_000;
+  // Rough targets: 720p30 ~5, 1080p30 ~10, 1440p30 ~16, 4K30 ~35 Mbps
+  let base: number;
+  if (pixels >= 3840 * 2160) base = 35_000_000;
+  else if (pixels >= 2560 * 1440) base = 16_000_000;
+  else if (pixels >= 1920 * 1080) base = 10_000_000;
+  else base = 5_000_000;
   return Math.round(base * (fps >= 60 ? 1.5 : 1));
 }
 

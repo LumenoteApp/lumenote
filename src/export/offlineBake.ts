@@ -24,7 +24,7 @@ import {
   type BuiltinInstrumentId,
 } from '../engine/instruments';
 import { VisualizerEngine } from '../render/VisualizerEngine';
-import type { ExportFps, ExportProgress } from './VideoExporter';
+import { EXPORT_DESIGN, type ExportFps, type ExportProgress } from './VideoExporter';
 
 export type BakeOptions = {
   song: Song;
@@ -210,6 +210,12 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
   const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null;
   if (!ctx) throw new Error('Could not create bake canvas context');
 
+  // Paint in 1080p design space, scale up/down to the chosen output size
+  const designW = EXPORT_DESIGN.width;
+  const designH = EXPORT_DESIGN.height;
+  const scaleX = width / designW;
+  const scaleY = height / designH;
+
   const engine = new VisualizerEngine();
   engine.reset();
 
@@ -272,7 +278,10 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
   });
 
   let prevTime = -0.0001;
-  const batch = fps >= 60 ? 3 : 5;
+  // Higher res / 60fps: yield more often so the UI stays responsive
+  const batch =
+    height >= 2160 ? (fps >= 60 ? 1 : 2) : height >= 1440 ? (fps >= 60 ? 2 : 3) : fps >= 60 ? 3 : 5;
+  const resLabel = `${width}×${height}`;
 
   try {
     for (let i = 0; i < totalFrames; i++) {
@@ -283,8 +292,9 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
       }
 
       const time = i * dt;
+      ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
       // Engine expects CanvasRenderingContext2D; Offscreen's 2d API is compatible
-      engine.render(ctx as CanvasRenderingContext2D, width, height, {
+      engine.render(ctx as CanvasRenderingContext2D, designW, designH, {
         song,
         tracks,
         settings,
@@ -303,7 +313,7 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
           phase: 'recording',
           elapsed: time,
           duration,
-          message: `Baking ${i + 1}/${totalFrames} frames${audioNote}`,
+          message: `Baking ${i + 1}/${totalFrames} frames · ${resLabel}${audioNote}`,
         });
         await yieldToUi();
       }

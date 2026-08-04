@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { NoteEvent, Song, TrackInfo, VisualSettings } from '../midi/types';
 import { playbackEngine } from '../engine/PlaybackEngine';
+import { EXPORT_DESIGN } from '../export/VideoExporter';
 import { VisualizerEngine } from './VisualizerEngine';
 
 export type ExportResolution = {
@@ -86,11 +87,14 @@ export function VisualizerCanvas({
       if (!parent) return;
       const exp = exportResRef.current;
       if (exp && exp.width > 0 && exp.height > 0) {
+        // Lock bitmap to export size; paint in 1080p design space (see draw loop)
         canvas.width = exp.width;
         canvas.height = exp.height;
         canvas.style.width = '100%';
         canvas.style.height = '100%';
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        const sx = exp.width / EXPORT_DESIGN.width;
+        const sy = exp.height / EXPORT_DESIGN.height;
+        ctx.setTransform(sx, 0, 0, sy, 0, 0);
       } else {
         const dpr = window.devicePixelRatio || 1;
         const rect = parent.getBoundingClientRect();
@@ -123,9 +127,20 @@ export function VisualizerCanvas({
       const currentSong = songRef.current;
       const currentTracks = tracksRef.current;
       const exp = exportResRef.current;
-      const dpr = exp ? 1 : window.devicePixelRatio || 1;
-      const w = canvas.width / dpr;
-      const h = canvas.height / dpr;
+      // Export: design-space layout scaled to output. Live: CSS logical size.
+      let w: number;
+      let h: number;
+      if (exp && exp.width > 0 && exp.height > 0) {
+        w = EXPORT_DESIGN.width;
+        h = EXPORT_DESIGN.height;
+        const sx = exp.width / EXPORT_DESIGN.width;
+        const sy = exp.height / EXPORT_DESIGN.height;
+        ctx.setTransform(sx, 0, 0, sy, 0, 0);
+      } else {
+        const dpr = window.devicePixelRatio || 1;
+        w = canvas.width / dpr;
+        h = canvas.height / dpr;
+      }
       viewSizeRef.current = { w, h };
 
       const isPlaying = playingRef.current;
@@ -168,7 +183,9 @@ export function VisualizerCanvas({
       canvas.height = exportResolution.height;
       canvas.style.width = '100%';
       canvas.style.height = '100%';
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const sx = exportResolution.width / EXPORT_DESIGN.width;
+      const sy = exportResolution.height / EXPORT_DESIGN.height;
+      ctx.setTransform(sx, 0, 0, sy, 0, 0);
     } else {
       const dpr = window.devicePixelRatio || 1;
       const rect = parent.getBoundingClientRect();

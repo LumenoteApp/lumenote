@@ -57,15 +57,17 @@ Tone uses **standardized-audio-context** wrappers. Spessa creates a native `Audi
 ### Bake (default, smooth)
 
 1. `VisualizerEngine` draws each frame at `time = i/fps` with fixed `dt = 1/fps`.  
-2. Hits/particles advance deterministically from song notes (no wall clock).  
-3. [Mediabunny](https://mediabunny.dev/) `CanvasSource` + WebCodecs → **MP4**.  
-4. Optional audio via `Tone.Offline` (Tone instruments match; GM/SF2 fall back to Soft Piano offline).  
-5. Lazy-loaded chunk (`offlineBake.ts`) so Mediabunny is not in the initial bundle.
+2. Layout is painted in a **1920×1080 design space**, then scaled to the selected output (720p / 1080p / 1440p / 4K).  
+3. Hits/particles advance deterministically from song notes (no wall clock).  
+4. [Mediabunny](https://mediabunny.dev/) `CanvasSource` + WebCodecs → **MP4**.  
+5. Optional audio via `Tone.Offline` (Tone instruments match; GM/SF2 fall back to Soft Piano offline).  
+6. Lazy-loaded chunk (`offlineBake.ts`) so Mediabunny is not in the initial bundle.
 
 ### Realtime (optional)
 
-1. Lock live canvas bitmap to 1920×1080.  
-2. `canvas.captureStream` + master-bus audio → `MediaRecorder` (can drop frames under load).
+1. Lock live canvas bitmap to the chosen export size (720p–4K).  
+2. Paint in 1080p design space, scale to output (same composition as bake).  
+3. `canvas.captureStream` + master-bus audio → `MediaRecorder` (can drop frames under load).
 
 Code: `src/render/VisualizerEngine.ts`, `src/export/offlineBake.ts`, `src/export/VideoExporter.ts`, `src/ui/ExportPanel.tsx`.
 

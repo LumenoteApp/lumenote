@@ -603,7 +603,7 @@ export default function App() {
       phase: 'preparing',
       elapsed: 0,
       duration: currentSong.duration,
-      message: 'Preparing 1080p canvas…',
+      message: `Preparing ${width}×${height} canvas…`,
     });
     setExportResolution({ width, height });
     await sleep(120);

@@ -262,6 +262,10 @@
   font-size: 0.8rem;
 }
 
+.export-row-stack {
+  align-items: flex-start;
+}
+
 .export-value {
   color: rgba(232, 234, 239, 0.75);
   font-size: 0.78rem;
@@ -269,7 +273,19 @@
 
 .export-fps {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.export-res {
+  max-width: 14rem;
+}
+
+.export-res-meta {
+  margin: 0.2rem 0 0 !important;
+  text-align: right;
+  font-size: 0.72rem !important;
 }
 
 .export-eta {
