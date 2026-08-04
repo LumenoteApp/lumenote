@@ -88,6 +88,8 @@ Lumenote is a **local-first web app** you own: load a multi-track MIDI, paint th
 - Scene presets (built-in + saves in `localStorage`)  
 - Fullscreen player (`F`); studio overlay in fullscreen (`B` or edge tab)  
 - Shortcuts: `Space` play · `R` stop · `←` `→` seek · `Ctrl+P` party  
+- **1s lead-in** on load so notes scroll in before the first hit (export included)  
+- **BPM** readout from the MIDI tempo map (updates if tempo changes)  
 
 ---
 

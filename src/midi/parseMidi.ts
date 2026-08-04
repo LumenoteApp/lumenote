@@ -3,6 +3,12 @@ import { colorForTrack } from '../theme/defaultPalette';
 import type { NoteEvent, Song, TrackInfo } from './types';
 import { noteSoundDuration } from './types';
 
+/**
+ * Empty time at the start of every loaded song so the first notes can
+ * scroll down from above before they hit (live + offline bake share this).
+ */
+export const SONG_LEAD_IN_SECONDS = 1;
+
 type SustainEvent = {
   time: number;
   /** true when CC64 ≥ 64 */
@@ -262,9 +268,18 @@ export async function parseMidiFile(
     t.noteCount = notes.filter((n) => n.trackIndex === t.index).length;
   }
 
-  // Song length must cover sustain tail so audio is not cut off
+  // Lead-in: shift timeline so notes fall in from above before the first hit.
+  // Applied after sustain so soundDuration stays a relative length.
+  const leadIn = SONG_LEAD_IN_SECONDS;
+  if (leadIn > 0) {
+    for (const n of notes) {
+      n.start += leadIn;
+    }
+  }
+
+  // Song length must cover lead-in + sustain tail so audio is not cut off
   const duration = Math.max(
-    midi.duration,
+    midi.duration + leadIn,
     notes.reduce(
       (max, n) => Math.max(max, n.start + noteSoundDuration(n)),
       0,
@@ -273,7 +288,7 @@ export async function parseMidiFile(
 
   const tempos =
     midi.header.tempos?.map((t) => ({
-      time: t.time ?? 0,
+      time: (t.time ?? 0) + leadIn,
       bpm: t.bpm,
     })) ?? [{ time: 0, bpm: 120 }];
 

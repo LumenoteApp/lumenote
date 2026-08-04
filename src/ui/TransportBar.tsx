@@ -1,8 +1,12 @@
+import { formatBpm } from '../midi/types';
+
 type Props = {
   fileName: string | null;
   playing: boolean;
   currentTime: number;
   duration: number;
+  /** Active tempo at playhead; null when no song / unknown */
+  bpm: number | null;
   playerOnly: boolean;
   onHome: () => void;
   onOpen: () => void;
@@ -24,6 +28,7 @@ export function TransportBar({
   playing,
   currentTime,
   duration,
+  bpm,
   playerOnly,
   onHome,
   onOpen,
@@ -63,6 +68,12 @@ export function TransportBar({
           <span className="time-sep">/</span>
           {formatTime(duration)}
         </span>
+        {bpm != null ? (
+          <span className="bpm" title="Tempo from MIDI">
+            {formatBpm(bpm)}
+            <span className="bpm-unit">BPM</span>
+          </span>
+        ) : null}
       </div>
 
       <div className="transport-right">

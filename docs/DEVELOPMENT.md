@@ -65,6 +65,14 @@ Spessa must use a **native** `AudioContext` (see `AudioEngine.getNativeAudioCont
 
 UI: `src/ui/ExportPanel.tsx`. Prefer bake for smooth 720p–4K (design layout 1080p, scaled).
 
+Bake and live play share the **same song timeline**, including `SONG_LEAD_IN_SECONDS` from `parseMidi.ts` (1s empty scroll-in before first hits). Change that constant only if you intentionally want a different intro length.
+
+## MIDI parse notes
+
+- Entry: `src/midi/parseMidi.ts` → `parseMidiFile`  
+- Lead-in: `SONG_LEAD_IN_SECONDS` (default `1`)  
+- Tempo map kept on `song.tempos`; UI BPM via `bpmAt` / `formatBpm`
+
 ## Git / GitHub
 
 ```bash
@@ -98,3 +106,5 @@ git push origin master
 | Party overwrites look | Load preset without disabling party |
 | Realtime export drops frames | Use **Bake** mode instead |
 | Bake audio wrong for GM/SF2 | Known: Soft Piano offline fallback |
+| First notes hit instantly | Reload MIDI after lead-in change; old in-memory song has no shift |
+| BPM missing / wrong | Tempo map empty or mid-file change - check `song.tempos` |

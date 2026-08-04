@@ -147,14 +147,23 @@ Deep-cloned in presets / party / surprise via helpers in `theme/`.
 
 ## Data flow: load MIDI
 
-1. `parseMidiFile` (`@tonejs/midi`) → `Song` (notes + tracks)  
-2. Apply current color palette to tracks  
-3. `playbackEngine.setSong` (stops previous)  
-4. UI shows tracks; play schedules audio  
+1. `parseMidiFile` (`@tonejs/midi`) → `Song` (notes + tracks + tempos)  
+2. Sustain CC64 → `soundDuration` on notes (`applySustainPedal`)  
+3. **Lead-in:** `SONG_LEAD_IN_SECONDS` (1s) shifts all note starts and tempo times so the first notes fall in from above before the hit line (live, bake, and realtime share this timeline)  
+4. Apply current color palette to tracks  
+5. `playbackEngine.setSong` (stops previous)  
+6. UI shows tracks + active BPM; play schedules audio  
 
 Single-track multi-channel MIDIs may be split by channel in `parseMidi.ts`.
+
+### Tempo / BPM
+
+- `Song.tempos` from the MIDI header (after lead-in shift).  
+- `bpmAt(tempos, time)` / `formatBpm` in `src/midi/types.ts`.  
+- Transport bar and fullscreen chrome show the active BPM at the playhead.
 
 ## Studio UI
 
 Sidebar sections: **Scene** · **Audio** · **Look** · **Export** · Shortcuts.  
-Fullscreen: player-only stage; `B` / edge chevron overlays the same sidebar without shrinking the canvas.
+Fullscreen: player-only stage; `B` / edge chevron overlays the same sidebar without shrinking the canvas.  
+Transport: time scrubber + **BPM** from the loaded MIDI.

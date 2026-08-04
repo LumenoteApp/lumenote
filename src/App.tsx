@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseMidiFile } from './midi/parseMidi';
-import type { Song, TrackInfo, VisualSettings } from './midi/types';
+import { bpmAt, formatBpm, type Song, type TrackInfo, type VisualSettings } from './midi/types';
 import { DEFAULT_VISUAL_SETTINGS } from './theme/defaultPalette';
 import {
   applyPaletteToTracks,
@@ -861,6 +861,8 @@ export default function App() {
     );
   }
 
+  const displayBpm = song ? bpmAt(song.tempos, currentTime) : null;
+
   return (
     <div
       className={`app ${dragOver ? 'drag-over' : ''} ${playerOnly ? 'player-only' : ''} ${randomizer.partyMode ? 'is-partying' : ''}`}
@@ -877,6 +879,7 @@ export default function App() {
           playing={playing}
           currentTime={currentTime}
           duration={song?.duration ?? 0}
+          bpm={displayBpm}
           playerOnly={playerOnly}
           onHome={goHome}
           onOpen={() => fileInputRef.current?.click()}
@@ -972,6 +975,12 @@ export default function App() {
                       <span className="time-sep">/</span>
                       {formatTime(song?.duration ?? 0)}
                     </span>
+                    {displayBpm != null && (
+                      <span className="bpm" title="Tempo from MIDI">
+                        {formatBpm(displayBpm)}
+                        <span className="bpm-unit">BPM</span>
+                      </span>
+                    )}
                   </div>
                   <div className="player-chrome-right">
                     <button

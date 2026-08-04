@@ -46,6 +46,26 @@ export type Song = {
   tempos: TempoEvent[];
 };
 
+/**
+ * Active BPM at song time (seconds). Tempos should be sorted by time.
+ * Uses the last tempo whose time ≤ t; before the first event, uses the first BPM.
+ */
+export function bpmAt(tempos: TempoEvent[] | undefined, time: number): number | null {
+  if (!tempos?.length) return null;
+  let bpm = tempos[0]!.bpm;
+  for (let i = 1; i < tempos.length; i++) {
+    if (tempos[i]!.time <= time) bpm = tempos[i]!.bpm;
+    else break;
+  }
+  return Number.isFinite(bpm) && bpm > 0 ? bpm : null;
+}
+
+/** Display helper: integer when whole, one decimal otherwise. */
+export function formatBpm(bpm: number): string {
+  const r = Math.round(bpm * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+
 /** Full particle look - driven by presets or manual sliders */
 export type ParticleParams = {
   /** Spawn count multiplier */
