@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react';
 import type { NoteEvent, Song, TrackInfo, VisualSettings } from '../midi/types';
+import { computerPiano } from '../engine/ComputerPiano';
+import { labelsForTranspose } from '../engine/computerKeyboardMap';
 import { playbackEngine } from '../engine/PlaybackEngine';
 import { EXPORT_DESIGN } from '../export/VideoExporter';
-import { VisualizerEngine } from './VisualizerEngine';
+import { hitTestPianoKey } from './keyboardLayout';
+import { resolveKeyboardH, VisualizerEngine } from './VisualizerEngine';
 
 export type ExportResolution = {
   width: number;
@@ -44,6 +47,8 @@ export function VisualizerCanvas({
   const suspendRef = useRef(suspendLiveDraw);
   /** Logical draw size (matches ctx transform space) for hit FX */
   const viewSizeRef = useRef({ w: 1, h: 1 });
+  /** Active pointer ids we captured for piano playing */
+  const activePointersRef = useRef(new Set<number>());
 
   tracksRef.current = tracks;
   settingsRef.current = settings;
@@ -147,6 +152,12 @@ export function VisualizerCanvas({
       const time = isPlaying ? playbackEngine.getTime() : seekTimeRef.current;
       if (isPlaying) playbackEngine.tickHits();
 
+      const prefs = computerPiano.getPrefs();
+      const keyLabels =
+        prefs.showLabels && s.showKeyboard
+          ? labelsForTranspose(computerPiano.getEffectiveTranspose())
+          : null;
+
       engineRef.current.render(ctx, w, h, {
         song: currentSong,
         tracks: currentTracks,
@@ -159,6 +170,7 @@ export function VisualizerCanvas({
         liveVisual: playbackEngine.getLiveVisualNotes(),
         wallNow: performance.now(),
         showEmptyHint: true,
+        keyLabels,
       });
     };
 
@@ -198,5 +210,88 @@ export function VisualizerCanvas({
     engineRef.current.reseatBackground();
   }, [exportResolution]);
 
-  return <canvas ref={canvasRef} className="visualizer-canvas" />;
+  // Pointer / touch piano on the drawn keyboard
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const clientToLogical = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      const { w, h } = viewSizeRef.current;
+      if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 };
+      return {
+        x: ((clientX - rect.left) / rect.width) * w,
+        y: ((clientY - rect.top) / rect.height) * h,
+      };
+    };
+
+    const pitchAt = (clientX: number, clientY: number): number | null => {
+      if (suspendRef.current) return null;
+      const s = settingsRef.current;
+      if (!s.showKeyboard) return null;
+      const { w, h } = viewSizeRef.current;
+      const { x, y } = clientToLogical(clientX, clientY);
+      const keyboardH = resolveKeyboardH(s);
+      return hitTestPianoKey(x, y, w, h, keyboardH);
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      const midi = pitchAt(e.clientX, e.clientY);
+      if (midi === null) return;
+      e.preventDefault();
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      activePointersRef.current.add(e.pointerId);
+      computerPiano.pointerDown(e.pointerId, midi);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!activePointersRef.current.has(e.pointerId)) return;
+      const midi = pitchAt(e.clientX, e.clientY);
+      computerPiano.pointerMove(e.pointerId, midi);
+    };
+
+    const endPointer = (e: PointerEvent) => {
+      if (!activePointersRef.current.has(e.pointerId)) return;
+      activePointersRef.current.delete(e.pointerId);
+      computerPiano.pointerUp(e.pointerId);
+      try {
+        if (canvas.hasPointerCapture(e.pointerId)) {
+          canvas.releasePointerCapture(e.pointerId);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', endPointer);
+    canvas.addEventListener('pointercancel', endPointer);
+    canvas.addEventListener('lostpointercapture', endPointer);
+
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', endPointer);
+      canvas.removeEventListener('pointercancel', endPointer);
+      canvas.removeEventListener('lostpointercapture', endPointer);
+      for (const id of activePointersRef.current) {
+        computerPiano.pointerUp(id);
+      }
+      activePointersRef.current.clear();
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="visualizer-canvas"
+      style={{ touchAction: 'none' }}
+    />
+  );
 }

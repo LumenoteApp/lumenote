@@ -75,3 +75,39 @@ export function buildKeyRects(width: number): KeyRect[] {
   }
   return [...whites, ...blacks];
 }
+
+/** Black key height as a fraction of the keyboard strip (matches VisualizerEngine paint). */
+export const BLACK_KEY_HEIGHT_RATIO = 0.62;
+
+/**
+ * Hit-test logical canvas coords against the on-screen piano.
+ * Black keys win when the pointer is in the black-key vertical band.
+ * Returns MIDI pitch or null.
+ */
+export function hitTestPianoKey(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  keyboardH: number,
+): number | null {
+  if (keyboardH <= 0 || width <= 0 || height <= 0) return null;
+  const ky = height - keyboardH;
+  if (y < ky || y > height || x < 0 || x > width) return null;
+
+  const keys = buildKeyRects(width);
+  const blackBottom = ky + 3 + keyboardH * BLACK_KEY_HEIGHT_RATIO;
+
+  if (y <= blackBottom) {
+    for (const key of keys) {
+      if (!key.isBlack) continue;
+      if (x >= key.x && x < key.x + key.w) return key.midi;
+    }
+  }
+
+  for (const key of keys) {
+    if (key.isBlack) continue;
+    if (x >= key.x && x < key.x + key.w) return key.midi;
+  }
+  return null;
+}

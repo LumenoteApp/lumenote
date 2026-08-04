@@ -71,20 +71,24 @@ Tone uses **standardized-audio-context** wrappers. Spessa creates a native `Audi
 
 Code: `src/render/VisualizerEngine.ts`, `src/export/offlineBake.ts`, `src/export/VideoExporter.ts`, `src/ui/ExportPanel.tsx`.
 
-## Live MIDI (`MidiIO`)
+## Live input (MIDI + computer piano)
 
 ```
-Hardware keyboard ──► midiIO (Web MIDI) ──► playbackEngine.liveNoteOn/Off
-                                              ├─ AudioEngine.noteOn (local synth)
-                                              └─ onNoteHit → particles / hit rail
+Hardware keyboard ──► midiIO (Web MIDI) ──┐
+QWERTY (REAL map) ──► computerPiano ──────┼─► playbackEngine.liveNoteOn/Off
+Pointer on canvas ──► computerPiano ──────┘     ├─ AudioEngine.noteOn (local synth)
+                                                └─ onNoteHit → particles / hit rail
 
 Song schedule ──► transport callbacks ──► synth + midiIO.schedulePlaybackNote (optional out)
 Input thru    ──► midiIO ──► selected MIDIOutput
 ```
 
-- Enable from **Live MIDI** sidebar (user gesture → `requestMIDIAccess` + warm audio).
+- **Hardware:** Enable from **Live play** sidebar (user gesture → `requestMIDIAccess` + warm audio).
+- **QWERTY:** Virtual Piano 1–m layout (`computerKeyboardMap.ts`); whites `1234567890qwertyuiopasdfghjklzxcvbnm` (1=C2 … m=C7); Shift hold = temp +1 transpose; ←/→ ±12, ↑/↓ ±1; Space inverts sustain from `sustainDefaultOn` (default true = VP style); prefs `lumenote-computer-piano-v2`.
+- **Touch/click:** Hit-test `buildKeyRects` on the drawn keyboard (`VisualizerCanvas`); multi-touch via pointer capture.
+- All live paths call `liveNoteOn/Off` only (no transport reanchor).
 - Live bars grow from the hit line and scroll up after release (wall clock).
-- Chrome/Edge/Opera desktop; Safari/Firefox lack Web MIDI (UI explains).
+- Chrome/Edge/Opera desktop for Web MIDI; QWERTY + on-screen piano work without it.
 
 ## Rendering
 

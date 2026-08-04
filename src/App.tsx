@@ -32,6 +32,7 @@ import { ExportPanel } from './ui/ExportPanel';
 import type { InstrumentId } from './engine/instruments';
 import type { ScenePreset } from './theme/scenePresets';
 import { hydrateSceneData } from './theme/scenePresets';
+import { computerPiano } from './engine/ComputerPiano';
 import { midiIO } from './engine/MidiIO';
 import {
   DEFAULT_EXPORT_SETTINGS,
@@ -185,6 +186,12 @@ export default function App() {
         playbackEngine.liveNoteOff(msg.pitch, msg.channel);
       }
     });
+  }, []);
+
+  // QWERTY piano listeners (prefs live in computerPiano singleton)
+  useEffect(() => {
+    computerPiano.attach();
+    return () => computerPiano.detach();
   }, []);
 
   useEffect(() => {
@@ -443,6 +450,17 @@ export default function App() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
+      // Escape still exits fullscreen overlay even while playing piano
+      if (e.code === 'Escape' && playerOnly) {
+        e.preventDefault();
+        if (fsSidebarOpen) setFsSidebarOpen(false);
+        else void exitPlayerOnly();
+        return;
+      }
+
+      // QWERTY piano owns the keyboard: no Space/R/F/B/arrows/party shortcuts
+      if (computerPiano.isQwertyEnabled()) return;
+
       if (e.code === 'Space') {
         e.preventDefault();
         void onPlayPause();
@@ -464,10 +482,6 @@ export default function App() {
       } else if (e.code === 'KeyB' && playerOnly) {
         e.preventDefault();
         setFsSidebarOpen((o) => !o);
-      } else if (e.code === 'Escape' && playerOnly) {
-        e.preventDefault();
-        if (fsSidebarOpen) setFsSidebarOpen(false);
-        else void exitPlayerOnly();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1156,6 +1170,11 @@ export default function App() {
                 <li>
                   <kbd>←</kbd> <kbd>→</kbd> seek 2s
                 </li>
+                <li>
+                  QWERTY on: Virtual Piano 1–m · Shift +1 hold · ←/→ oct ·
+                  ↑/↓ st · Space sustain · <kbd>Esc</kbd> exits fullscreen
+                </li>
+                <li>Tap or drag the on-screen keyboard to play</li>
               </ul>
             </section>
           </aside>

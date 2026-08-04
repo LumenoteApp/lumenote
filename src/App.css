@@ -161,11 +161,63 @@
   line-height: 1.35;
 }
 
-/* ── Live MIDI panel ── */
+/* ── Live play panel (QWERTY + MIDI) ── */
 .midi-panel h2 {
   display: flex;
   align-items: center;
   gap: 0.45rem;
+}
+
+.midi-subhead {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.65rem 0 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(232, 234, 239, 0.55);
+}
+
+.midi-subsection + .midi-subsection {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.midi-octave-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.midi-octave-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.midi-octave-value {
+  min-width: 4.25rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(232, 234, 239, 0.9);
+}
+
+.midi-octave-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.midi-octave-controls .btn {
+  min-width: 2.1rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+  font-size: 0.72rem;
 }
 
 .midi-activity {
@@ -236,6 +288,14 @@
 
 .midi-check input:disabled + span {
   opacity: 0.45;
+}
+
+.midi-check-detail {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: rgba(232, 234, 239, 0.45);
+  font-weight: 400;
 }
 
 .midi-actions {

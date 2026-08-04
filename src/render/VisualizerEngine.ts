@@ -4,7 +4,13 @@
  */
 import type { NoteEvent, Song, TrackInfo, VisualSettings } from '../midi/types';
 import type { LiveNoteState } from '../engine/PlaybackEngine';
-import { buildKeyRects, isBlackKey, pitchToX, whiteKeyWidth } from './keyboardLayout';
+import {
+  BLACK_KEY_HEIGHT_RATIO,
+  buildKeyRects,
+  isBlackKey,
+  pitchToX,
+  whiteKeyWidth,
+} from './keyboardLayout';
 import { ParticleSystem } from './ParticleSystem';
 import { BackgroundEffects } from './BackgroundEffects';
 import { HitRail } from './HitRail';
@@ -77,6 +83,8 @@ export type FrameInput = {
   /** performance.now() for live rising notes; ignored in bake if no live visual */
   wallNow?: number;
   showEmptyHint?: boolean;
+  /** Optional QWERTY labels on the on-screen keyboard (midi → letter) */
+  keyLabels?: ReadonlyMap<number, string> | null;
 };
 
 export class VisualizerEngine {
@@ -155,6 +163,7 @@ export class VisualizerEngine {
       liveVisual,
       wallNow = 0,
       showEmptyHint = true,
+      keyLabels = null,
     } = input;
     const dt = Math.min(0.05, Math.max(0, rawDt));
     const particleParams = s.particles;
@@ -385,6 +394,9 @@ export class VisualizerEngine {
     if (s.showKeyboard) {
       const keys = buildKeyRects(w);
       const ky = h - keyboardH;
+      const bh = keyboardH * BLACK_KEY_HEIGHT_RATIO;
+      const labelMap = keyLabels && keyLabels.size > 0 ? keyLabels : null;
+      const labelFontPx = Math.max(8, Math.min(12, whiteKeyWidth(w) * 0.42));
 
       ctx.fillStyle = '#10121a';
       ctx.fillRect(0, ky, w, keyboardH);
@@ -408,16 +420,35 @@ export class VisualizerEngine {
           ctx.fillStyle = hexAlpha(pressed.color, 0.3);
           ctx.fillRect(key.x, ky, key.w, 5);
         }
+        if (labelMap) {
+          const lab = labelMap.get(key.midi);
+          if (lab) {
+            ctx.fillStyle = 'rgba(20, 22, 30, 0.45)';
+            ctx.font = `600 ${labelFontPx}px "Segoe UI", system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(lab, key.x + key.w / 2, ky + keyboardH - 10);
+          }
+        }
       }
       for (const key of keys) {
         if (!key.isBlack) continue;
         const pressed = activeKeys.get(key.midi);
-        const bh = keyboardH * 0.62;
         ctx.fillStyle = pressed ? hexAlpha(pressed.color, 0.95) : '#1a1c24';
         roundedRect(ctx, key.x, ky + 3, key.w, bh, 3);
         ctx.fill();
         ctx.strokeStyle = 'rgba(255,255,255,0.08)';
         ctx.stroke();
+        if (labelMap) {
+          const lab = labelMap.get(key.midi);
+          if (lab) {
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            ctx.font = `600 ${Math.max(7, labelFontPx - 1)}px "Segoe UI", system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(lab, key.x + key.w / 2, ky + 3 + bh - 5);
+          }
+        }
       }
     }
 
@@ -430,7 +461,7 @@ export class VisualizerEngine {
       ctx.font = '400 13px "Segoe UI", system-ui, sans-serif';
       ctx.fillStyle = 'rgba(255,255,255,0.28)';
       ctx.fillText(
-        'Or enable Live MIDI in the sidebar and play a keyboard',
+        'Tap the keyboard, enable QWERTY in Live play, or connect MIDI',
         w / 2,
         h / 2 + 16,
       );
