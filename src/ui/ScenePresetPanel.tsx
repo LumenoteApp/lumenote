@@ -2,10 +2,14 @@ import { useMemo, useState } from 'react';
 import type { InstrumentId } from '../engine/instruments';
 import type { VisualSettings } from '../midi/types';
 import {
+  type SceneCategoryId,
   type ScenePreset,
+  SCENE_CATEGORIES,
   captureScene,
   deleteUserPreset,
+  getBuiltInCategoryIdsInUse,
   listAllPresets,
+  listBuiltInsByCategory,
   saveUserPreset,
 } from '../theme/scenePresets';
 
@@ -29,8 +33,10 @@ export function ScenePresetPanel({
   const [name, setName] = useState('');
   const [tick, setTick] = useState(0);
   const presets = useMemo(() => listAllPresets(), [tick]);
+  const categoryIds = useMemo(() => getBuiltInCategoryIdsInUse(), []);
+  const [category, setCategory] = useState<SceneCategoryId>(categoryIds[0] ?? 'classic');
 
-  const builtIn = presets.filter((p) => p.builtIn);
+  const builtIn = useMemo(() => listBuiltInsByCategory(category), [category]);
   const user = presets.filter((p) => !p.builtIn);
 
   const save = () => {
@@ -47,6 +53,8 @@ export function ScenePresetPanel({
     if (activePresetId === id) onActiveId(null);
     setTick((t) => t + 1);
   };
+
+  const categoryMeta = SCENE_CATEGORIES.filter((c) => categoryIds.includes(c.id));
 
   return (
     <section className="panel scene-preset-panel">
@@ -73,14 +81,33 @@ export function ScenePresetPanel({
       </div>
       {instrumentId === 'sf2' && (
         <p className="muted small scene-sf2-note">
-          Note: SF2 files themselves aren’t stored - reload your soundfont after loading this preset.
+          Note: SF2 files themselves aren't stored - reload your soundfont after loading this preset.
         </p>
       )}
 
       <p className="muted small" style={{ marginTop: '0.75rem' }}>
-        Built-in
+        Built-in looks
       </p>
-      <div className="preset-grid">
+      <div className="scene-cat-row" role="tablist" aria-label="Preset categories">
+        {categoryMeta.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            role="tab"
+            aria-selected={category === c.id}
+            className={`scene-cat-chip ${category === c.id ? 'active' : ''}`}
+            title={c.blurb}
+            onClick={() => setCategory(c.id)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <p className="muted small scene-cat-blurb">
+        {categoryMeta.find((c) => c.id === category)?.blurb ?? ''}
+        {builtIn.length > 0 ? ` · ${builtIn.length} looks` : ''}
+      </p>
+      <div className="preset-grid scene-preset-grid">
         {builtIn.map((p) => (
           <button
             key={p.id}

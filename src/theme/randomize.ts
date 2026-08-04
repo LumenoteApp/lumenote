@@ -83,6 +83,9 @@ const BG_STYLES: BackgroundStyle[] = [
   'nebula',
   'pulse',
   'grid',
+  'rain',
+  'radar',
+  'warp',
 ];
 
 export function randomizeBackground(): BackgroundParams {

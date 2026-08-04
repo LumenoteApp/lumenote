@@ -18,8 +18,11 @@ export type LiveNoteState = {
 
 type Listener = () => void;
 
-/** True only when mute/visibility change (not color/name). */
-function tracksAffectAudio(prev: TrackInfo[], next: TrackInfo[]): boolean {
+/**
+ * True only when mute/visibility change (not color/name).
+ * Exported so tests can assert color-only updates never reschedule audio.
+ */
+export function tracksAffectAudio(prev: TrackInfo[], next: TrackInfo[]): boolean {
   if (prev.length !== next.length) return true;
   const prevByIndex = new Map(prev.map((t) => [t.index, t]));
   for (const t of next) {

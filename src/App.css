@@ -1069,6 +1069,48 @@
   color: rgba(255, 255, 255, 0.35);
 }
 
+.scene-cat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+.scene-cat-chip {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(232, 234, 239, 0.78);
+  border-radius: 99px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.scene-cat-chip:hover {
+  border-color: rgba(79, 195, 247, 0.4);
+  color: #fff;
+}
+
+.scene-cat-chip.active {
+  border-color: rgba(244, 143, 177, 0.55);
+  background: linear-gradient(135deg, rgba(79, 195, 247, 0.16), rgba(244, 143, 177, 0.14));
+  color: #fff;
+}
+
+.scene-cat-blurb {
+  margin: 0.35rem 0 0.4rem !important;
+  font-size: 0.7rem !important;
+}
+
+.scene-preset-grid {
+  max-height: 14.5rem;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
 .preset-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

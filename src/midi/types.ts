@@ -69,7 +69,19 @@ export type ParticleParams = {
   hitFlash: number;
 };
 
-export type BackgroundStyle = 'void' | 'starfield' | 'aurora' | 'nebula' | 'pulse' | 'grid';
+export type BackgroundStyle =
+  | 'void'
+  | 'starfield'
+  | 'aurora'
+  | 'nebula'
+  | 'pulse'
+  | 'grid'
+  /** Falling colored streaks that accelerate with note energy */
+  | 'rain'
+  /** Concentric rings + rotating scan sweep */
+  | 'radar'
+  /** Hyperspace tunnel lines toward the horizon */
+  | 'warp';
 
 export type BackgroundParams = {
   enabled: boolean;

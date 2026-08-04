@@ -26,6 +26,22 @@ type Beam = {
   speed: number;
 };
 
+type RainDrop = {
+  x: number;
+  y: number;
+  len: number;
+  speed: number;
+  thickness: number;
+  drift: number;
+};
+
+type WarpLine = {
+  angle: number;
+  dist: number;
+  speed: number;
+  width: number;
+};
+
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace('#', '');
   const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
@@ -45,6 +61,8 @@ export class BackgroundEffects {
   private stars: Star[] = [];
   private orbs: Orb[] = [];
   private beams: Beam[] = [];
+  private rain: RainDrop[] = [];
+  private warp: WarpLine[] = [];
   private w = 0;
   private h = 0;
   private time = 0;
@@ -97,6 +115,30 @@ export class BackgroundEffects {
         speed: 0.15 + Math.random() * 0.35,
       });
     }
+
+    const rainCount = Math.round(40 + params.stars * 100 + params.beams * 40);
+    this.rain = [];
+    for (let i = 0; i < rainCount; i++) {
+      this.rain.push({
+        x: Math.random() * this.w,
+        y: Math.random() * this.h,
+        len: 8 + Math.random() * 28,
+        speed: 180 + Math.random() * 320,
+        thickness: 0.6 + Math.random() * 1.4,
+        drift: (Math.random() - 0.5) * 40,
+      });
+    }
+
+    const warpCount = Math.round(50 + params.beams * 80 + params.stars * 40);
+    this.warp = [];
+    for (let i = 0; i < warpCount; i++) {
+      this.warp.push({
+        angle: Math.random() * Math.PI * 2,
+        dist: 0.02 + Math.random() * 0.98,
+        speed: 0.35 + Math.random() * 1.1,
+        width: 0.6 + Math.random() * 2.2,
+      });
+    }
   }
 
   update(dt: number, energy: number, params: BackgroundParams) {
@@ -130,6 +172,28 @@ export class BackgroundEffects {
       b.x += Math.sin(b.phase) * 20 * dt;
       if (b.x < -b.width) b.x = this.w + b.width;
       if (b.x > this.w + b.width) b.x = -b.width;
+    }
+
+    const rainMul = 1 + this.energySmooth * 1.8 + params.parallax * 0.5;
+    for (const d of this.rain) {
+      d.y += d.speed * rainMul * dt;
+      d.x += d.drift * dt * (0.4 + this.energySmooth);
+      if (d.y > this.h + d.len) {
+        d.y = -d.len - Math.random() * 40;
+        d.x = Math.random() * this.w;
+      }
+      if (d.x < -20) d.x = this.w + 20;
+      if (d.x > this.w + 20) d.x = -20;
+    }
+
+    const warpMul = 0.55 + this.energySmooth * 1.6 + params.parallax * 0.35;
+    for (const l of this.warp) {
+      l.dist += l.speed * warpMul * dt;
+      if (l.dist > 1.15) {
+        l.dist = 0.02 + Math.random() * 0.08;
+        l.angle = Math.random() * Math.PI * 2;
+        l.speed = 0.35 + Math.random() * 1.1;
+      }
     }
   }
 
@@ -192,6 +256,20 @@ export class BackgroundEffects {
     if (style === 'grid') {
       this.drawGrid(ctx, w, h, palette, intensity, energy);
       this.drawStars(ctx, intensity * 0.5, energy, 0.6);
+    }
+
+    if (style === 'rain') {
+      this.drawRain(ctx, w, h, palette, intensity, energy, params);
+      this.drawStars(ctx, intensity * 0.35, energy, 0.5);
+    }
+
+    if (style === 'radar') {
+      this.drawRadar(ctx, w, h, palette, intensity, energy, params);
+      this.drawStars(ctx, intensity * 0.4, energy, 0.55);
+    }
+
+    if (style === 'warp') {
+      this.drawWarp(ctx, w, h, palette, intensity, energy, params);
     }
 
     // Always a soft floor glow near the keyboard (music reactive)
@@ -380,6 +458,138 @@ export class BackgroundEffects {
     grad.addColorStop(1, `rgba(${c1.r},${c1.g},${c1.b},${a})`);
     ctx.fillStyle = grad;
     ctx.fillRect(0, y, w, h - y);
+    ctx.restore();
+  }
+
+  /** Falling colored streaks (matrix / storm). */
+  private drawRain(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    palette: { r: number; g: number; b: number }[],
+    intensity: number,
+    energy: number,
+    params: BackgroundParams,
+  ) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const tilt = 0.12 + params.parallax * 0.15;
+    for (let i = 0; i < this.rain.length; i++) {
+      const d = this.rain[i];
+      const c = palette[i % palette.length];
+      const a = intensity * (0.08 + energy * 0.22) * (0.45 + (d.speed / 500) * 0.55);
+      const dx = d.len * tilt;
+      ctx.strokeStyle = `rgba(${c.r},${c.g},${c.b},${clamp01(a)})`;
+      ctx.lineWidth = d.thickness * (0.8 + energy * 0.6);
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x + dx, d.y + d.len * (0.85 + energy * 0.35));
+      ctx.stroke();
+    }
+    // Soft wet floor sheen
+    const floor = ctx.createLinearGradient(0, h * 0.65, 0, h);
+    const c0 = palette[0];
+    floor.addColorStop(0, 'rgba(0,0,0,0)');
+    floor.addColorStop(1, `rgba(${c0.r},${c0.g},${c0.b},${intensity * 0.1 * (0.3 + energy)})`);
+    ctx.fillStyle = floor;
+    ctx.fillRect(0, h * 0.65, w, h * 0.35);
+    ctx.restore();
+  }
+
+  /** Concentric rings + rotating radar sweep. */
+  private drawRadar(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    palette: { r: number; g: number; b: number }[],
+    intensity: number,
+    energy: number,
+    params: BackgroundParams,
+  ) {
+    const cx = w * 0.5;
+    const cy = h * 0.42;
+    const maxR = Math.min(w, h) * (0.42 + energy * 0.08);
+    const c0 = palette[0];
+    const c1 = palette[1 % palette.length];
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    // Expanding rings
+    const ringCount = Math.max(3, Math.round(3 + params.waves * 4));
+    for (let i = 0; i < ringCount; i++) {
+      const phase = (this.time * (0.35 + energy * 0.55) + i / ringCount) % 1;
+      const r = maxR * phase;
+      const a = intensity * 0.14 * (1 - phase) * (0.4 + energy * 0.7);
+      ctx.strokeStyle = `rgba(${c0.r},${c0.g},${c0.b},${clamp01(a)})`;
+      ctx.lineWidth = 1.2 + energy * 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.max(2, r), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Rotating sweep wedge
+    const sweep = this.time * (0.7 + params.parallax * 0.9 + energy * 1.1);
+    const span = 0.45 + energy * 0.35;
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+    grad.addColorStop(0, `rgba(${c1.r},${c1.g},${c1.b},${intensity * 0.16 * (0.5 + energy)})`);
+    grad.addColorStop(1, `rgba(${c1.r},${c1.g},${c1.b},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, maxR, sweep, sweep + span);
+    ctx.closePath();
+    ctx.fill();
+
+    // Center blip
+    const blip = 4 + energy * 10;
+    ctx.fillStyle = `rgba(255,255,255,${intensity * 0.25 * (0.4 + energy)})`;
+    ctx.beginPath();
+    ctx.arc(cx, cy, blip, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** Hyperspace tunnel lines racing outward. */
+  private drawWarp(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    palette: { r: number; g: number; b: number }[],
+    intensity: number,
+    energy: number,
+    params: BackgroundParams,
+  ) {
+    const cx = w * 0.5;
+    const cy = h * 0.4;
+    const maxDim = Math.hypot(w, h) * 0.55;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    // Soft core
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxDim * 0.22);
+    const cCore = palette[0];
+    core.addColorStop(0, `rgba(${cCore.r},${cCore.g},${cCore.b},${intensity * 0.12 * (0.4 + energy)})`);
+    core.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = core;
+    ctx.fillRect(0, 0, w, h);
+
+    for (let i = 0; i < this.warp.length; i++) {
+      const l = this.warp[i];
+      const c = palette[i % palette.length];
+      const d0 = l.dist;
+      const d1 = Math.min(1.2, l.dist + 0.04 + energy * 0.06 + params.parallax * 0.03);
+      const x0 = cx + Math.cos(l.angle) * d0 * maxDim;
+      const y0 = cy + Math.sin(l.angle) * d0 * maxDim * 0.85;
+      const x1 = cx + Math.cos(l.angle) * d1 * maxDim;
+      const y1 = cy + Math.sin(l.angle) * d1 * maxDim * 0.85;
+      const a = intensity * (0.06 + energy * 0.2) * (0.35 + d0 * 0.85);
+      ctx.strokeStyle = `rgba(${c.r},${c.g},${c.b},${clamp01(a)})`;
+      ctx.lineWidth = l.width * (0.5 + d0 * 1.4) * (0.7 + energy * 0.8);
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 }
