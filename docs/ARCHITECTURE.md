@@ -98,14 +98,23 @@ Input thru    ──► midiIO ──► selected MIDIOutput
 
 Shared by live and bake:
 
-1. Background effects (music energy)  
+1. Background effects (music energy; styles include rain / radar / warp)  
 2. Music reactive ambient particles  
-3. Falling notes (track/dynamic colors via `resolveNoteColor`)  
-4. Hit rail  
+3. Falling notes (`noteStyles.ts`: solid/glass/gem/flame/… flat opaque bodies + additive FX)  
+4. Hit rail (`HitRail.ts`: soft/electric/wave/shock/spark/laser/storm/aurora)  
 5. Hit/sustain particle system  
 6. Keyboard  
 
 Settings come from React props → `settingsRef` each render. Party mode updates settings from App ~30fps.
+
+### App routes
+
+| Path | Screen |
+|------|--------|
+| `/` | `HomePage` |
+| `/player` | Studio (stage + sidebar) |
+
+History API in `App.tsx` (`goToScreen` / `popstate`). Static hosts need SPA fallback (`public/_redirects`).
 
 ## Settings model
 
