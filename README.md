@@ -9,6 +9,8 @@
 <h1 align="center">Lumenote</h1>
 
 <p align="center">
+  <a href="https://lumenote.nl"><strong>Try it live → lumenote.nl</strong></a>
+  ·
   <a href="https://www.youtube.com/watch?v=BjfoS6BrbYg">Watch the demo on YouTube</a>
 </p>
 
@@ -19,9 +21,10 @@
 </p>
 
 <p align="center">
-  <a href="#-quick-start"><img src="https://img.shields.io/badge/quick%20start-npm%20run%20dev-4FC3F7?style=for-the-badge&labelColor=0b0d14" alt="Quick start" /></a>
-  <a href="#-features"><img src="https://img.shields.io/badge/features-visuals%20%2B%20export-F48FB1?style=for-the-badge&labelColor=0b0d14" alt="Features" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-CE93D8?style=for-the-badge&labelColor=0b0d14" alt="MIT License" /></a>
+  <a href="https://lumenote.nl"><img src="https://img.shields.io/badge/try%20it-lumenote.nl-4FC3F7?style=for-the-badge&labelColor=0b0d14" alt="Try it at lumenote.nl" /></a>
+  <a href="#-quick-start"><img src="https://img.shields.io/badge/quick%20start-npm%20run%20dev-F48FB1?style=for-the-badge&labelColor=0b0d14" alt="Quick start" /></a>
+  <a href="#-features"><img src="https://img.shields.io/badge/features-visuals%20%2B%20export-CE93D8?style=for-the-badge&labelColor=0b0d14" alt="Features" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-A5D6A7?style=for-the-badge&labelColor=0b0d14" alt="MIT License" /></a>
 </p>
 
 <p align="center">
