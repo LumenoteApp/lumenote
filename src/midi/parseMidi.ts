@@ -184,7 +184,9 @@ export async function parseMidiFile(
   const midi = new Midi(buffer);
 
   const tracks: TrackInfo[] = [];
-  const notes: NoteEvent[] = [];
+  // `let` so large remaps can reassign without Array#push(...huge) which
+  // blows the call stack (arg list limit) on dense / long MIDI files.
+  let notes: NoteEvent[] = [];
   let noteId = 0;
 
   // Sustain may live on tracks without notes - collect before filtering
@@ -251,15 +253,13 @@ export async function parseMidiFile(
         }
         idx++;
       }
-      notes.length = 0;
-      notes.push(...remapped);
+      notes = remapped;
     }
   }
 
-  // Apply CC 64 sustain so scheduled note-off matches piano pedaling
-  const withSustain = applySustainPedal(notes, sustainEvents);
-  notes.length = 0;
-  notes.push(...withSustain);
+  // Apply CC 64 sustain so scheduled note-off matches piano pedaling.
+  // Reassign instead of push(...arr) — see note above about stack limits.
+  notes = applySustainPedal(notes, sustainEvents);
 
   notes.sort((a, b) => a.start - b.start || a.pitch - b.pitch);
 

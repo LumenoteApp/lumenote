@@ -96,6 +96,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
   const setParticle = <K extends keyof ParticleParams>(key: K, value: ParticleParams[K]) => {
     onChange({
       ...settings,
+      particlesEnabled: true,
       particlePresetId: 'custom',
       particles: { ...settings.particles, [key]: value },
     });
@@ -112,7 +113,12 @@ export function SettingsPanel({ settings, onChange }: Props) {
     onChange({
       ...settings,
       musicReactivePresetId: 'custom',
-      musicReactive: { ...settings.musicReactive, [key]: value },
+      musicReactive: {
+        ...settings.musicReactive,
+        [key]: value,
+        // Tweaking a slider while Off turns the section back on
+        ...(key === 'enabled' ? {} : { enabled: true }),
+      },
     });
   };
 
@@ -166,15 +172,14 @@ export function SettingsPanel({ settings, onChange }: Props) {
 
   const p = settings.particles;
   const bg = settings.background;
-  const particlesOff = !settings.particlesEnabled;
-  const bgOff = !bg.enabled;
+  // Prefer style chip when on; highlight Off chip only when disabled
   const activeBgId: string = !bg.enabled ? 'off' : bg.style;
 
   return (
     <>
       <CollapsiblePanel
         id="look-visuals"
-        title="Visuals"
+        title="Notes"
         actions={
           <RandomizeButton
             onClick={() => onChange({ ...settings, ...randomizeVisuals() })}
@@ -243,20 +248,21 @@ export function SettingsPanel({ settings, onChange }: Props) {
             </button>
           </div>
           <div className="preset-grid" style={{ marginTop: '0.4rem' }}>
-            {NOTE_STYLE_PRESETS.map((p) => {
+            {NOTE_STYLE_PRESETS.map((preset) => {
               const active =
-                settings.noteStylePresetId === p.id ||
-                (settings.noteStylePresetId === 'custom' && settings.notes?.style === p.params.style);
+                settings.noteStylePresetId === preset.id ||
+                (settings.noteStylePresetId === 'custom' &&
+                  settings.notes?.style === preset.params.style);
               return (
                 <button
-                  key={p.id}
+                  key={preset.id}
                   type="button"
                   className={`preset-chip ${active ? 'active' : ''}`}
-                  title={p.blurb}
-                  onClick={() => applyNotePreset(p.id)}
+                  title={preset.blurb}
+                  onClick={() => applyNotePreset(preset.id)}
                 >
-                  <span className="preset-name">{p.name}</span>
-                  <span className="preset-blurb">{p.blurb}</span>
+                  <span className="preset-name">{preset.name}</span>
+                  <span className="preset-blurb">{preset.blurb}</span>
                 </button>
               );
             })}
@@ -320,15 +326,24 @@ export function SettingsPanel({ settings, onChange }: Props) {
           />
         </label>
 
-        <label className="field check">
+        <label className="field row">
+          <span>Base color</span>
           <input
-            type="checkbox"
-            checked={settings.showKeyboard}
-            onChange={(e) => set('showKeyboard', e.target.checked)}
+            type="color"
+            value={settings.backgroundColor}
+            onChange={(e) => set('backgroundColor', e.target.value)}
           />
-          <span>Show keyboard</span>
         </label>
+      </CollapsiblePanel>
 
+      <CollapsiblePanel
+        id="look-keyboard"
+        title="Keyboard"
+        defaultOpen={false}
+        enabled={settings.showKeyboard}
+        onEnabledChange={(on) => set('showKeyboard', on)}
+      >
+        <p className="muted small">On-screen piano under the falling notes.</p>
         <label className="field compact">
           <span className="field-label">
             Piano height
@@ -340,41 +355,45 @@ export function SettingsPanel({ settings, onChange }: Props) {
             max={280}
             step={4}
             value={settings.keyboardHeight ?? 200}
-            disabled={!settings.showKeyboard}
-            onChange={(e) => set('keyboardHeight', Number(e.target.value))}
+            onChange={(e) =>
+              onChange({
+                ...settings,
+                keyboardHeight: Number(e.target.value),
+                showKeyboard: true,
+              })
+            }
           />
         </label>
+      </CollapsiblePanel>
 
-        <label className="field check">
-          <input
-            type="checkbox"
-            checked={settings.showHitRail}
-            onChange={(e) => set('showHitRail', e.target.checked)}
-          />
-          <span>Impact rail</span>
-        </label>
-
-        <div className={`field ${!settings.showHitRail ? 'is-disabled' : ''}`} style={{ marginTop: '0.4rem' }}>
+      <CollapsiblePanel
+        id="look-hit-rail"
+        title="Impact rail"
+        defaultOpen={false}
+        enabled={settings.showHitRail}
+        onEnabledChange={(on) => set('showHitRail', on)}
+      >
+        <p className="muted small">Hit line above the keyboard - blooms when notes land.</p>
+        <div className="field" style={{ marginTop: '0.4rem' }}>
           <span className="field-label">Rail style</span>
           <div className="preset-grid" style={{ marginTop: '0.35rem' }}>
-            {HIT_RAIL_STYLE_PRESETS.map((p) => (
+            {HIT_RAIL_STYLE_PRESETS.map((preset) => (
               <button
-                key={p.id}
+                key={preset.id}
                 type="button"
-                className={`preset-chip ${settings.hitRailStyle === p.id ? 'active' : ''}`}
-                title={p.blurb}
-                disabled={!settings.showHitRail}
+                className={`preset-chip ${settings.hitRailStyle === preset.id ? 'active' : ''}`}
+                title={preset.blurb}
                 onClick={() =>
                   onChange({
                     ...settings,
-                    hitRailStyle: p.id,
-                    hitRailEnergy: p.energy,
+                    hitRailStyle: preset.id,
+                    hitRailEnergy: preset.energy,
                     showHitRail: true,
                   })
                 }
               >
-                <span className="preset-name">{p.name}</span>
-                <span className="preset-blurb">{p.blurb}</span>
+                <span className="preset-name">{preset.name}</span>
+                <span className="preset-blurb">{preset.blurb}</span>
               </button>
             ))}
           </div>
@@ -391,8 +410,13 @@ export function SettingsPanel({ settings, onChange }: Props) {
             max={1.2}
             step={0.05}
             value={settings.hitRailIntensity}
-            disabled={!settings.showHitRail}
-            onChange={(e) => set('hitRailIntensity', Number(e.target.value))}
+            onChange={(e) =>
+              onChange({
+                ...settings,
+                hitRailIntensity: Number(e.target.value),
+                showHitRail: true,
+              })
+            }
           />
         </label>
 
@@ -407,17 +431,13 @@ export function SettingsPanel({ settings, onChange }: Props) {
             max={1.4}
             step={0.05}
             value={settings.hitRailEnergy ?? 0.55}
-            disabled={!settings.showHitRail}
-            onChange={(e) => set('hitRailEnergy', Number(e.target.value))}
-          />
-        </label>
-
-        <label className="field row">
-          <span>Base color</span>
-          <input
-            type="color"
-            value={settings.backgroundColor}
-            onChange={(e) => set('backgroundColor', e.target.value)}
+            onChange={(e) =>
+              onChange({
+                ...settings,
+                hitRailEnergy: Number(e.target.value),
+                showHitRail: true,
+              })
+            }
           />
         </label>
       </CollapsiblePanel>
@@ -426,6 +446,13 @@ export function SettingsPanel({ settings, onChange }: Props) {
         id="look-music"
         title="Music reactive"
         defaultOpen={false}
+        enabled={settings.musicReactive.enabled}
+        onEnabledChange={(on) =>
+          onChange({
+            ...settings,
+            musicReactive: { ...settings.musicReactive, enabled: on },
+          })
+        }
         actions={
           <RandomizeButton
             onClick={() =>
@@ -463,15 +490,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
           )}
         </div>
 
-        <label className="field check" style={{ marginTop: '0.65rem' }}>
-          <input
-            type="checkbox"
-            checked={settings.musicReactive.enabled}
-            onChange={(e) => setMusic('enabled', e.target.checked)}
-          />
-          <span>Enabled</span>
-        </label>
-        <div className={`param-stack ${settings.musicReactive.enabled ? '' : 'is-disabled'}`}>
+        <div className="param-stack" style={{ marginTop: '0.65rem' }}>
           {MUSIC_SLIDERS.map((sl) => (
             <label key={sl.key} className="field compact">
               <span className="field-label">
@@ -484,7 +503,6 @@ export function SettingsPanel({ settings, onChange }: Props) {
                 max={sl.max}
                 step={sl.step}
                 value={Number(settings.musicReactive[sl.key])}
-                disabled={!settings.musicReactive.enabled}
                 onChange={(e) => setMusic(sl.key, Number(e.target.value) as never)}
               />
             </label>
@@ -496,6 +514,13 @@ export function SettingsPanel({ settings, onChange }: Props) {
         id="look-background"
         title="Background"
         defaultOpen={false}
+        enabled={bg.enabled}
+        onEnabledChange={(on) =>
+          onChange({
+            ...settings,
+            background: { ...settings.background, enabled: on },
+          })
+        }
         actions={
           <RandomizeButton
             onClick={() =>
@@ -524,7 +549,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
           ))}
         </div>
 
-        <div className={`param-stack ${bgOff ? 'is-disabled' : ''}`} style={{ marginTop: '0.75rem' }}>
+        <div className="param-stack" style={{ marginTop: '0.75rem' }}>
           {BG_SLIDERS.map((sl) => (
             <label key={sl.key} className="field compact">
               <span className="field-label">
@@ -537,7 +562,6 @@ export function SettingsPanel({ settings, onChange }: Props) {
                 max={sl.max}
                 step={sl.step}
                 value={Number(bg[sl.key])}
-                disabled={bgOff}
                 onChange={(e) => setBg(sl.key, Number(e.target.value) as never)}
               />
             </label>
@@ -549,6 +573,8 @@ export function SettingsPanel({ settings, onChange }: Props) {
         id="look-particles"
         title="Particles"
         defaultOpen={false}
+        enabled={settings.particlesEnabled}
+        onEnabledChange={(on) => set('particlesEnabled', on)}
         actions={
           <RandomizeButton
             onClick={() =>
@@ -562,14 +588,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
           />
         }
       >
-        <label className="field check">
-          <input
-            type="checkbox"
-            checked={settings.particlesEnabled}
-            onChange={(e) => set('particlesEnabled', e.target.checked)}
-          />
-          <span>Enabled</span>
-        </label>
+        <p className="muted small">Hit sparks and sustain trails when notes land.</p>
 
         <p className="muted small">Presets</p>
         <div className="preset-grid">
@@ -579,7 +598,6 @@ export function SettingsPanel({ settings, onChange }: Props) {
               type="button"
               className={`preset-chip ${settings.particlePresetId === pr.id ? 'active' : ''}`}
               title={pr.blurb}
-              disabled={particlesOff}
               onClick={() => applyParticlePreset(pr.id)}
             >
               <span className="preset-name">{pr.name}</span>
@@ -597,7 +615,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
         <p className="muted small" style={{ marginTop: '0.75rem' }}>
           Parameters
         </p>
-        <div className={`param-stack ${particlesOff ? 'is-disabled' : ''}`}>
+        <div className="param-stack">
           {PARTICLE_SLIDERS.map((sl) => (
             <label key={sl.key} className="field compact">
               <span className="field-label">
@@ -610,7 +628,6 @@ export function SettingsPanel({ settings, onChange }: Props) {
                 max={sl.max}
                 step={sl.step}
                 value={p[sl.key]}
-                disabled={particlesOff}
                 onChange={(e) => setParticle(sl.key, Number(e.target.value))}
               />
             </label>
