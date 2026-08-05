@@ -8,6 +8,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { tracksAffectAudio } from '../src/engine/PlaybackEngine.ts';
+import {
+  MIDI_DEFAULT_BPM,
+  bpmAt,
+  normalizeBpm,
+  scaleSongTempo,
+} from '../src/midi/types.ts';
 import { EXPORT_PRESETS } from '../src/export/VideoExporter.ts';
 import { BACKGROUND_PRESETS } from '../src/theme/backgroundPresets.ts';
 import { getProductStats } from '../src/theme/productStats.ts';
@@ -65,6 +71,7 @@ assert.equal(totalByCat, count, 'category lists must cover all built-ins');
 // ── UI groups (source structure) ──
 const panelSrc = readFileSync(join(root, 'src/ui/ScenePresetPanel.tsx'), 'utf8');
 assert.match(panelSrc, /scene-cat-row/);
+assert.match(panelSrc, /scene-cat-select/);
 assert.match(panelSrc, /listBuiltInsByCategory/);
 assert.match(panelSrc, /SCENE_CATEGORIES|categoryMeta/);
 assert.match(panelSrc, /parseUserPresetsImport/);
@@ -72,6 +79,22 @@ assert.match(panelSrc, /serializeUserPresetsExport/);
 assert.match(panelSrc, /Import/);
 assert.match(panelSrc, /Export/);
 assert.match(panelSrc, /user-preset-io/);
+assert.match(panelSrc, /scene-lib-tabs/);
+assert.match(panelSrc, /scene-preset-scroll/);
+
+const appSrc = readFileSync(join(root, 'src/App.tsx'), 'utf8');
+assert.match(appSrc, /sidebar-tabs/);
+assert.match(appSrc, /sidebarTab/);
+assert.match(appSrc, /sidebar-body/);
+
+const collapseSrc = readFileSync(join(root, 'src/ui/CollapsiblePanel.tsx'), 'utf8');
+assert.match(collapseSrc, /usePanelOpen/);
+assert.match(collapseSrc, /CollapsiblePanel/);
+assert.match(collapseSrc, /lumenote-sidebar-collapse-v1/);
+assert.match(
+  readFileSync(join(root, 'src/ui/SettingsPanel.tsx'), 'utf8'),
+  /CollapsiblePanel/,
+);
 
 // ── User preset import / export (pure) ──
 {
@@ -130,6 +153,38 @@ for (const s of newStyles) {
 for (const s of newStyles) {
   const hit = BUILTIN_SCENE_PRESETS.some((p) => p.settings.background.style === s);
   assert.ok(hit, `no built-in preset uses background.style=${s}`);
+}
+
+// ── Tempo helpers ──
+assert.equal(normalizeBpm(119.999), 120);
+assert.equal(normalizeBpm(140.002), 140);
+assert.equal(bpmAt([{ time: 2, bpm: 90 }], 0), MIDI_DEFAULT_BPM);
+assert.equal(bpmAt([{ time: 0, bpm: 128 }, { time: 4, bpm: 140 }], 1), 128);
+assert.equal(bpmAt([{ time: 0, bpm: 128 }, { time: 4, bpm: 140 }], 4), 140);
+{
+  const scaled = scaleSongTempo(
+    {
+      name: 't',
+      duration: 10,
+      tracks: [],
+      notes: [
+        {
+          id: 'n0',
+          pitch: 60,
+          start: 2,
+          duration: 1,
+          velocity: 0.8,
+          trackIndex: 0,
+          channel: 0,
+        },
+      ],
+      tempos: [{ time: 0, bpm: 120 }],
+    },
+    2,
+  );
+  assert.equal(scaled.duration, 5);
+  assert.equal(scaled.notes[0]!.start, 1);
+  assert.equal(scaled.tempos[0]!.bpm, 240);
 }
 
 // ── Export 4K still present ──

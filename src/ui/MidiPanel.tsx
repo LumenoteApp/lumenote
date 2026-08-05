@@ -8,6 +8,7 @@ import {
 } from '../engine/computerKeyboardMap';
 import { midiIO, type MidiPortInfo } from '../engine/MidiIO';
 import { playbackEngine } from '../engine/PlaybackEngine';
+import { CollapsiblePanel } from './CollapsiblePanel';
 
 type Snapshot = {
   supported: boolean;
@@ -101,8 +102,7 @@ export function MidiPanel() {
   }, []);
 
   return (
-    <section className="panel midi-panel">
-      <h2>Live play</h2>
+    <CollapsiblePanel id="audio-live" title="Live play" className="midi-panel" defaultOpen={false}>
       <p className="muted small">
         Play with your computer keyboard, tap the on-screen piano, or connect a
         MIDI controller.
@@ -347,6 +347,6 @@ export function MidiPanel() {
       </div>
 
       {state.error && <p className="sound-error">{state.error}</p>}
-    </section>
+    </CollapsiblePanel>
   );
 }

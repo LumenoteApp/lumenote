@@ -10,6 +10,7 @@ import {
   exportExtension,
   formatResolution,
 } from '../export/VideoExporter';
+import { CollapsiblePanel } from './CollapsiblePanel';
 
 type Props = {
   hasSong: boolean;
@@ -57,8 +58,7 @@ export function ExportPanel({
   const isHeavy = settings.width * settings.height >= 2560 * 1440;
 
   return (
-    <section className="panel export-panel">
-      <h2>Export video</h2>
+    <CollapsiblePanel id="export-video" title="Export video" className="export-panel">
       <p className="muted small">
         {settings.mode === 'bake'
           ? 'Offline bake: every frame is computed at exact fps - smooth MP4, no dropped frames.'
@@ -208,6 +208,6 @@ export function ExportPanel({
           ? `Output .${ext}. GM/SF2 bake audio may use Soft Piano offline. Party mode off during export.`
           : 'Close other tabs for fewer drops. Prefer Bake for smooth results.'}
       </p>
-    </section>
+    </CollapsiblePanel>
   );
 }

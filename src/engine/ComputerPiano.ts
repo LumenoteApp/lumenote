@@ -2,6 +2,9 @@
  * Virtual Piano QWERTY + pointer → playbackEngine.liveNoteOn/Off.
  * Layout: 1–m whites (C2–C7); Shift hold = temp +1 transpose;
  * arrows transpose; Space flips sustain from the configured default.
+ *
+ * Sustain keeps *sound* after key-up; visuals always end on key-up
+ * (same as hardware MIDI + CC64).
  */
 import { playbackEngine } from './PlaybackEngine';
 import {
@@ -30,8 +33,8 @@ export class ComputerPiano {
   /** pointerId → MIDI currently held via touch/mouse */
   private heldPointers = new Map<number, number>();
   /**
-   * Notes still ringing after key-up while sustain is active.
-   * Cleared when sustain turns off or on releaseAll.
+   * Notes still ringing after key-up while soft sustain is active.
+   * Visuals already sealed; cut with cutSustainedLiveNote when sustain lifts.
    */
   private sustained = new Set<number>();
   /** Space currently held (inverts sustain from default). */
@@ -86,7 +89,7 @@ export class ComputerPiano {
   }
 
   /**
-   * Effective sustain: follows sustainDefaultOn, inverted while Space is held.
+   * Effective soft sustain: follows sustainDefaultOn, inverted while Space is held.
    * Default on (VP): sustain unless Space held.
    * Default off: sustain only while Space held.
    */
@@ -134,7 +137,6 @@ export class ComputerPiano {
   setSustainDefaultOn(on: boolean) {
     const wasOn = this.isSustainOn();
     this.prefs = { ...this.prefs, sustainDefaultOn: on };
-    // If sustain just turned off, cut ringing notes
     if (wasOn && !this.isSustainOn()) {
       this.releaseSustained();
     }
@@ -202,7 +204,6 @@ export class ComputerPiano {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (this.isTypingTarget(e.target)) return;
 
-    // Shift: temporary +1 transpose while held (does not change saved transpose)
     if (isShiftCode(e.code)) {
       e.preventDefault();
       if (!this.shiftKeys.has(e.code)) {
@@ -212,15 +213,13 @@ export class ComputerPiano {
       return;
     }
 
-    // Space: invert sustain from default
     if (e.code === 'Space') {
       e.preventDefault();
-      if (e.repeat) return;
-      this.applySpaceHeld(true);
+      if (!e.repeat) this.applySpaceHeld(true);
       return;
     }
 
-    // Permanent transpose
+    // Arrows: transpose (←/→ octave, ↑/↓ semitone) when not typing
     if (e.code === 'ArrowLeft') {
       e.preventDefault();
       if (!e.repeat) this.shiftTranspose(-12);
@@ -231,14 +230,14 @@ export class ComputerPiano {
       if (!e.repeat) this.shiftTranspose(12);
       return;
     }
-    if (e.code === 'ArrowDown') {
-      e.preventDefault();
-      if (!e.repeat) this.shiftTranspose(-1);
-      return;
-    }
     if (e.code === 'ArrowUp') {
       e.preventDefault();
       if (!e.repeat) this.shiftTranspose(1);
+      return;
+    }
+    if (e.code === 'ArrowDown') {
+      e.preventDefault();
+      if (!e.repeat) this.shiftTranspose(-1);
       return;
     }
 
@@ -278,18 +277,13 @@ export class ComputerPiano {
     const midi = this.heldCodes.get(e.code);
     if (midi === undefined) return;
     this.heldCodes.delete(e.code);
-
-    if (this.isSustainOn()) {
-      this.sustained.add(midi);
-    } else {
-      playbackEngine.liveNoteOff(midi, 0);
-    }
+    this.endPitch(midi);
   };
 
   private releaseSustained() {
     for (const midi of this.sustained) {
       if (this.isMidiPhysicallyHeld(midi)) continue;
-      playbackEngine.liveNoteOff(midi, 0);
+      playbackEngine.cutSustainedLiveNote(midi, 0);
     }
     this.sustained.clear();
   }
@@ -320,15 +314,16 @@ export class ComputerPiano {
 
   /** Release only computer-piano held + sustained notes (not hardware MIDI). */
   releaseAll() {
-    this.releaseSustained();
     this.releaseKeyboardNotes();
     this.releasePointerNotes();
-    this.sustained.clear();
+    this.releaseSustained();
   }
 
+  /** Key/pointer up: seal visuals always; keep audio only while soft sustain is on. */
   private endPitch(midi: number) {
     if (this.isSustainOn()) {
       this.sustained.add(midi);
+      playbackEngine.liveNoteOff(midi, 0, { keepAudio: true });
     } else {
       playbackEngine.liveNoteOff(midi, 0);
     }

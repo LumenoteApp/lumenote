@@ -1,4 +1,5 @@
 import type { NoteEvent, Song, TrackInfo } from '../midi/types';
+import { clampTempoScale } from '../midi/types';
 import { AudioEngine } from './AudioEngine';
 import type { InstrumentId } from './instruments';
 
@@ -44,6 +45,11 @@ export class PlaybackEngine {
   private hitCursor = 0;
   private lastTime = 0;
   private playWallStart = 0;
+  /**
+   * Playback tempo multiplier (1 = MIDI original).
+   * >1 = faster / higher BPM; note times stay in original song seconds.
+   */
+  private tempoScale = 1;
   /** Currently held live notes (pitch → state) for keyboard lighting. */
   private liveHeld = new Map<number, LiveNoteState>();
   /**
@@ -53,6 +59,11 @@ export class PlaybackEngine {
   private liveVisual: LiveNoteState[] = [];
   /** Finger still down (channel:pitch) - separate from pedal-held sounding notes. */
   private liveFingers = new Set<string>();
+  /**
+   * Notes still sounding under sustain after key-up (channel:pitch).
+   * Visuals are already sealed; only audio waits for pedal release.
+   */
+  private pedalSustained = new Set<string>();
   /** Sustain pedal per MIDI channel (CC 64 ≥ 64). */
   private sustainPedal = new Array<boolean>(16).fill(false);
 
@@ -96,6 +107,7 @@ export class PlaybackEngine {
     this.liveHeld.clear();
     this.liveVisual = [];
     this.liveFingers.clear();
+    this.pedalSustained.clear();
   }
 
   private fingerKey(channel: number, pitch: number) {
@@ -104,8 +116,8 @@ export class PlaybackEngine {
 
   /**
    * Live MIDI / CC 64 sustain pedal.
-   * While down, note-offs keep sounding and keep keyboard lights / bars active
-   * until the pedal lifts (same idea as QWERTY Space sustain).
+   * While down, key-up keeps the *sound* ringing but ends keyboard lights / bars
+   * immediately. Pedal up cuts notes that are no longer fingered.
    */
   setSustainPedal(channel: number, down: boolean) {
     const ch = Math.min(15, Math.max(0, channel | 0));
@@ -122,26 +134,32 @@ export class PlaybackEngine {
     return this.sustainPedal[ch] === true;
   }
 
-  /** Release notes held only by the sustain pedal on this channel. */
+  /** Cut audio for notes held only by the sustain pedal on this channel. */
   private releasePedalHeldNotes(channel: number) {
-    const toRelease: number[] = [];
-    for (const [pitch, state] of this.liveHeld) {
-      if (state.channel !== channel) continue;
-      if (this.liveFingers.has(this.fingerKey(channel, pitch))) continue;
-      toRelease.push(pitch);
+    const prefix = `${channel}:`;
+    const toRelease: string[] = [];
+    for (const key of this.pedalSustained) {
+      if (!key.startsWith(prefix)) continue;
+      if (this.liveFingers.has(key)) continue;
+      toRelease.push(key);
     }
-    for (const pitch of toRelease) {
-      this.finishLiveNote(pitch, channel);
+    for (const key of toRelease) {
+      const pitch = Number(key.slice(prefix.length));
+      if (!Number.isFinite(pitch)) {
+        this.pedalSustained.delete(key);
+        continue;
+      }
+      this.audio.noteOff(pitch, channel);
+      this.pedalSustained.delete(key);
     }
   }
 
-  private finishLiveNote(pitch: number, channel: number) {
-    this.audio.noteOff(pitch, channel);
+  /** End rising-bar + keyboard-light state for a live note (does not touch audio). */
+  private sealLiveVisual(pitch: number, channel: number) {
     const held = this.liveHeld.get(pitch);
-    if (held && held.wallEnd === null) {
+    if (held && held.channel === channel && held.wallEnd === null) {
       held.wallEnd = performance.now();
     }
-    // Only delete if this entry is still the same channel (re-attack may replace)
     const cur = this.liveHeld.get(pitch);
     if (cur && cur.channel === channel) {
       this.liveHeld.delete(pitch);
@@ -156,6 +174,7 @@ export class PlaybackEngine {
     const p = Math.min(127, Math.max(0, pitch | 0));
     const vel = Math.max(0.01, Math.min(1, velocity));
     const ch = Math.min(15, Math.max(0, channel));
+    const key = this.fingerKey(ch, p);
 
     if (!this.audio.isReady()) {
       try {
@@ -165,7 +184,8 @@ export class PlaybackEngine {
       }
     }
 
-    this.liveFingers.add(this.fingerKey(ch, p));
+    this.pedalSustained.delete(key);
+    this.liveFingers.add(key);
     this.audio.noteOn(p, vel, ch);
     const now = performance.now();
 
@@ -199,17 +219,42 @@ export class PlaybackEngine {
     }
   }
 
-  liveNoteOff(pitch: number, channel = 0) {
+  /**
+   * Live note-off.
+   * Visuals / keyboard lights always end immediately.
+   * Audio keeps ringing when the channel sustain pedal is down, or when
+   * `keepAudio` is set (QWERTY soft sustain without driving CC64).
+   */
+  liveNoteOff(pitch: number, channel = 0, opts?: { keepAudio?: boolean }) {
     const p = Math.min(127, Math.max(0, pitch | 0));
     const ch = Math.min(15, Math.max(0, channel | 0));
-    this.liveFingers.delete(this.fingerKey(ch, p));
+    const key = this.fingerKey(ch, p);
+    this.liveFingers.delete(key);
 
-    // Sustain pedal: keep audio + visuals until pedal up
-    if (this.sustainPedal[ch]) {
+    // Always end visuals / key lights on finger up
+    this.sealLiveVisual(p, ch);
+
+    const keepAudio = !!opts?.keepAudio || this.sustainPedal[ch];
+    if (keepAudio) {
+      this.pedalSustained.add(key);
       return;
     }
 
-    this.finishLiveNote(p, ch);
+    this.pedalSustained.delete(key);
+    this.audio.noteOff(p, ch);
+  }
+
+  /**
+   * Cut audio for a note that was left ringing under sustain / keepAudio.
+   * No-op if the finger is still down.
+   */
+  cutSustainedLiveNote(pitch: number, channel = 0) {
+    const p = Math.min(127, Math.max(0, pitch | 0));
+    const ch = Math.min(15, Math.max(0, channel | 0));
+    const key = this.fingerKey(ch, p);
+    if (this.liveFingers.has(key)) return;
+    this.pedalSustained.delete(key);
+    this.audio.noteOff(p, ch);
   }
 
   /** Clear live held notes + rising bars (UI disconnect / panic). */
@@ -225,6 +270,34 @@ export class PlaybackEngine {
     this.tracks = song ? song.tracks.map((t) => ({ ...t })) : [];
     this.pauseOffset = 0;
     this.hitCursor = 0;
+    this.tempoScale = 1;
+    this.emit();
+  }
+
+  getTempoScale() {
+    return this.tempoScale;
+  }
+
+  /**
+   * Change playback speed / effective BPM. Keeps song position stable and
+   * re-anchors the audio schedule if currently playing.
+   */
+  setTempoScale(scale: number) {
+    const next = clampTempoScale(scale);
+    if (Math.abs(next - this.tempoScale) < 1e-6) return;
+    const t = this.getTime();
+    const wasPlaying = this.state === 'playing';
+    if (wasPlaying) {
+      this.audio.transportPauseStop();
+      this.audio.clearSchedule();
+      this.clearLiveVisual();
+    }
+    this.tempoScale = next;
+    this.pauseOffset = t;
+    if (wasPlaying) {
+      this.reanchorPlayback(t);
+      this.state = 'playing';
+    }
     this.emit();
   }
 
@@ -260,10 +333,12 @@ export class PlaybackEngine {
   getTime(): number {
     if (!this.song) return 0;
     if (this.state === 'playing') {
+      const scale = this.tempoScale > 0 ? this.tempoScale : 1;
       if (this.audio.isReady()) {
-        return this.pauseOffset + this.audio.getTransportSeconds();
+        // Transport runs in wall seconds; convert back to song seconds
+        return this.pauseOffset + this.audio.getTransportSeconds() * scale;
       }
-      return this.pauseOffset + (performance.now() - this.playWallStart) / 1000;
+      return this.pauseOffset + ((performance.now() - this.playWallStart) / 1000) * scale;
     }
     return this.pauseOffset;
   }
@@ -386,7 +461,7 @@ export class PlaybackEngine {
     this.playWallStart = performance.now();
     // scheduleNotes → clearSchedule kills live synth voices
     this.clearLiveVisual();
-    this.audio.scheduleNotes(this.song.notes, this.tracks, songTime);
+    this.audio.scheduleNotes(this.song.notes, this.tracks, songTime, this.tempoScale);
     if (this.audio.isReady()) {
       this.audio.transportStart(); // transport.seconds = 0, then start
     }

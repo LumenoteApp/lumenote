@@ -1,5 +1,6 @@
 import type { RandomCategory, RandomizerConfig } from '../theme/randomizerConfig';
 import { RANDOM_CATEGORIES, anyCategoryOn } from '../theme/randomizerConfig';
+import { CollapsiblePanel } from './CollapsiblePanel';
 import { RandomizeButton } from './RandomizeButton';
 
 type Props = {
@@ -25,13 +26,12 @@ export function RandomizerDock({ config, onChange, onSurprise }: Props) {
   const enabled = anyCategoryOn(config.categories);
 
   return (
-    <section
-      className={`panel randomizer-dock ${config.partyMode ? 'partying' : ''}`}
-      aria-label="Surprise me randomizer"
+    <CollapsiblePanel
+      id="scene-surprise"
+      title="Surprise me"
+      className={`randomizer-dock ${config.partyMode ? 'partying' : ''}`}
+      defaultOpen={false}
     >
-      <div className="panel-header">
-        <h2>Surprise me</h2>
-      </div>
       <p className="muted small">
         {config.partyMode
           ? 'Party mode - parameters are dancing'
@@ -124,6 +124,6 @@ export function RandomizerDock({ config, onChange, onSurprise }: Props) {
           </label>
         </div>
       )}
-    </section>
+    </CollapsiblePanel>
   );
 }

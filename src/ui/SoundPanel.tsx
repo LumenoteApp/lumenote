@@ -4,6 +4,7 @@ import {
   type InstrumentId,
 } from '../engine/instruments';
 import { playbackEngine } from '../engine/PlaybackEngine';
+import { CollapsiblePanel } from './CollapsiblePanel';
 
 type Props = {
   instrumentId: InstrumentId;
@@ -66,8 +67,7 @@ export function SoundPanel({
   const builtins = BUILTIN_INSTRUMENTS.filter((i) => i.id !== 'sf2');
 
   return (
-    <section className="panel sound-panel">
-      <h2>Sound</h2>
+    <CollapsiblePanel id="audio-sound" title="Sound" className="sound-panel">
       <p className="muted small">
         Built-in synths, chip tones, GM, or load your own SF2/SF3.
       </p>
@@ -146,6 +146,6 @@ export function SoundPanel({
         Tip: try <strong>Chiptune</strong> or <strong>GM Chip</strong> for retro vibes.
         Large SF2s may take a moment to load.
       </p>
-    </section>
+    </CollapsiblePanel>
   );
 }

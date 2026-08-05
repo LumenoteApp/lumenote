@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseMidiFile } from './midi/parseMidi';
-import { bpmAt, formatBpm, type Song, type TrackInfo, type VisualSettings } from './midi/types';
+import {
+  bpmAt,
+  clampTempoScale,
+  scaleSongTempo,
+  type Song,
+  type TrackInfo,
+  type VisualSettings,
+} from './midi/types';
 import { DEFAULT_VISUAL_SETTINGS } from './theme/defaultPalette';
 import {
   applyPaletteToTracks,
@@ -20,6 +27,7 @@ import {
 } from './theme/randomizerConfig';
 import { playbackEngine } from './engine/PlaybackEngine';
 import { VisualizerCanvas } from './render/VisualizerCanvas';
+import { BpmControl } from './ui/BpmControl';
 import { TransportBar } from './ui/TransportBar';
 import { TrackPanel } from './ui/TrackPanel';
 import { SettingsPanel } from './ui/SettingsPanel';
@@ -89,6 +97,8 @@ export default function App() {
   const [tracks, setTracks] = useState<TrackInfo[]>([]);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  /** Playback tempo multiplier (1 = file original). Synced with PlaybackEngine. */
+  const [tempoScale, setTempoScale] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState<VisualSettings>(() => ({
@@ -117,6 +127,8 @@ export default function App() {
   const [sf2Name, setSf2Name] = useState<string | null>(null);
   const [volume, setVolume] = useState(0.85);
   const [activeScenePresetId, setActiveScenePresetId] = useState<string | null>(null);
+  /** One studio section at a time so the sidebar stays short */
+  const [sidebarTab, setSidebarTab] = useState<'scene' | 'audio' | 'look' | 'export'>('scene');
   const [exportSettings, setExportSettings] = useState<ExportSettings>({
     ...DEFAULT_EXPORT_SETTINGS,
   });
@@ -416,6 +428,7 @@ export default function App() {
         setSong(songWithColors);
         setTracks(colored);
         setCurrentTime(0);
+        setTempoScale(1);
       } catch (e) {
         console.error(e);
         setError(e instanceof Error ? e.message : 'Failed to parse MIDI');
@@ -442,6 +455,41 @@ export default function App() {
   const onStop = useCallback(() => {
     playbackEngine.stop();
     setCurrentTime(0);
+  }, []);
+
+  const applyEffectiveBpm = useCallback(
+    (nextBpm: number) => {
+      if (!song) return;
+      const base = bpmAt(song.tempos, playbackEngine.getTime()) ?? 120;
+      if (!(base > 0)) return;
+      const clamped = Math.min(400, Math.max(20, nextBpm));
+      const nextScale = clampTempoScale(clamped / base);
+      playbackEngine.setTempoScale(nextScale);
+      setTempoScale(nextScale);
+    },
+    [song],
+  );
+
+  const onBpmDelta = useCallback(
+    (delta: number) => {
+      if (!song) return;
+      const base = bpmAt(song.tempos, playbackEngine.getTime()) ?? 120;
+      const current = base * playbackEngine.getTempoScale();
+      applyEffectiveBpm(current + delta);
+    },
+    [song, applyEffectiveBpm],
+  );
+
+  const onBpmSet = useCallback(
+    (bpm: number) => {
+      applyEffectiveBpm(bpm);
+    },
+    [applyEffectiveBpm],
+  );
+
+  const onBpmReset = useCallback(() => {
+    playbackEngine.setTempoScale(1);
+    setTempoScale(1);
   }, []);
 
   const onSeek = useCallback((t: number) => {
@@ -615,8 +663,10 @@ export default function App() {
       try {
         // Lazy-load mediabunny encoder stack
         const { bakeOfflineVideo } = await import('./export/offlineBake');
+        const scale = playbackEngine.getTempoScale();
+        const bakeSong = scaleSongTempo(currentSong, scale);
         const blob = await bakeOfflineVideo({
-          song: currentSong,
+          song: bakeSong,
           tracks: playbackEngine.getTracks(),
           settings: settingsRef.current,
           instrumentId: playbackEngine.audio.getInstrumentId(),
@@ -861,7 +911,9 @@ export default function App() {
     );
   }
 
-  const displayBpm = song ? bpmAt(song.tempos, currentTime) : null;
+  const fileBpm = song ? bpmAt(song.tempos, currentTime) : null;
+  const displayBpm = fileBpm != null ? fileBpm * tempoScale : null;
+  const tempoEdited = Math.abs(tempoScale - 1) > 1e-4;
 
   return (
     <div
@@ -880,6 +932,7 @@ export default function App() {
           currentTime={currentTime}
           duration={song?.duration ?? 0}
           bpm={displayBpm}
+          tempoEdited={tempoEdited}
           playerOnly={playerOnly}
           onHome={goHome}
           onOpen={() => fileInputRef.current?.click()}
@@ -887,6 +940,9 @@ export default function App() {
           onStop={onStop}
           onSeek={onSeek}
           onTogglePlayerOnly={togglePlayerOnly}
+          onBpmDelta={onBpmDelta}
+          onBpmSet={onBpmSet}
+          onBpmReset={onBpmReset}
         />
       )}
 
@@ -976,10 +1032,13 @@ export default function App() {
                       {formatTime(song?.duration ?? 0)}
                     </span>
                     {displayBpm != null && (
-                      <span className="bpm" title="Tempo from MIDI">
-                        {formatBpm(displayBpm)}
-                        <span className="bpm-unit">BPM</span>
-                      </span>
+                      <BpmControl
+                        bpm={displayBpm}
+                        tempoEdited={tempoEdited}
+                        onDelta={onBpmDelta}
+                        onSet={onBpmSet}
+                        onReset={onBpmReset}
+                      />
                     )}
                   </div>
                   <div className="player-chrome-right">
@@ -1103,103 +1162,130 @@ export default function App() {
               </div>
             </div>
 
-            <div className="sidebar-section">
-              <p className="sidebar-section-label">Scene</p>
-              <ScenePresetPanel
-                settings={settings}
-                instrumentId={instrumentId}
-                volume={volume}
-                activePresetId={activeScenePresetId}
-                onLoad={(p) => void loadScenePreset(p)}
-                onActiveId={setActiveScenePresetId}
-              />
-              <RandomizerDock
-                config={randomizer}
-                onChange={setRandomizer}
-                onSurprise={() => {
-                  setActiveScenePresetId(null);
-                  onSurprise();
-                }}
-              />
-            </div>
+            <nav className="sidebar-tabs" role="tablist" aria-label="Studio sections">
+              {(
+                [
+                  { id: 'scene' as const, label: 'Scene' },
+                  { id: 'audio' as const, label: 'Audio' },
+                  { id: 'look' as const, label: 'Look' },
+                  { id: 'export' as const, label: 'Export' },
+                ] as const
+              ).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={sidebarTab === t.id}
+                  className={`sidebar-tab ${sidebarTab === t.id ? 'active' : ''}`}
+                  onClick={() => setSidebarTab(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
 
-            <div className="sidebar-section">
-              <p className="sidebar-section-label">Audio</p>
-              <SoundPanel
-                instrumentId={instrumentId}
-                sf2Name={sf2Name}
-                volume={volume}
-                onInstrumentChange={(id) => {
-                  setInstrumentId(id);
-                  setActiveScenePresetId(null);
-                }}
-                onVolumeChange={(v) => {
-                  setVolume(v);
-                  setActiveScenePresetId(null);
-                }}
-                onSf2Loaded={setSf2Name}
-              />
-              <MidiPanel />
-            </div>
+            <div className="sidebar-body">
+              {sidebarTab === 'scene' && (
+                <div className="sidebar-section" role="tabpanel">
+                  <ScenePresetPanel
+                    settings={settings}
+                    instrumentId={instrumentId}
+                    volume={volume}
+                    activePresetId={activeScenePresetId}
+                    onLoad={(p) => void loadScenePreset(p)}
+                    onActiveId={setActiveScenePresetId}
+                  />
+                  <RandomizerDock
+                    config={randomizer}
+                    onChange={setRandomizer}
+                    onSurprise={() => {
+                      setActiveScenePresetId(null);
+                      onSurprise();
+                    }}
+                  />
+                </div>
+              )}
 
-            <div className="sidebar-section">
-              <p className="sidebar-section-label">Look</p>
-              <TrackPanel
-                tracks={tracks}
-                colors={settings.colors}
-                onTracksChange={onTracksChange}
-                onColorsChange={onColorsChange}
-              />
-              <SettingsPanel
-                settings={settings}
-                onChange={(next) => {
-                  applySettings(next, settings.colors.paletteId);
-                }}
-              />
-            </div>
+              {sidebarTab === 'audio' && (
+                <div className="sidebar-section" role="tabpanel">
+                  <SoundPanel
+                    instrumentId={instrumentId}
+                    sf2Name={sf2Name}
+                    volume={volume}
+                    onInstrumentChange={(id) => {
+                      setInstrumentId(id);
+                      setActiveScenePresetId(null);
+                    }}
+                    onVolumeChange={(v) => {
+                      setVolume(v);
+                      setActiveScenePresetId(null);
+                    }}
+                    onSf2Loaded={setSf2Name}
+                  />
+                  <MidiPanel />
+                </div>
+              )}
 
-            <div className="sidebar-section">
-              <p className="sidebar-section-label">Export</p>
-              <ExportPanel
-                hasSong={!!song}
-                duration={song?.duration ?? 0}
-                settings={exportSettings}
-                progress={exportProgress}
-                busy={exportBusy}
-                onChange={setExportSettings}
-                onStart={() => void startExport()}
-                onCancel={cancelExport}
-              />
-            </div>
+              {sidebarTab === 'look' && (
+                <div className="sidebar-section" role="tabpanel">
+                  <TrackPanel
+                    tracks={tracks}
+                    colors={settings.colors}
+                    onTracksChange={onTracksChange}
+                    onColorsChange={onColorsChange}
+                  />
+                  <SettingsPanel
+                    settings={settings}
+                    onChange={(next) => {
+                      applySettings(next, settings.colors.paletteId);
+                    }}
+                  />
+                </div>
+              )}
 
-            <section className="panel tips">
-              <h2>Shortcuts</h2>
-              <ul>
-                <li>
-                  <kbd>Space</kbd> play/pause
-                </li>
-                <li>
-                  <kbd>R</kbd> stop
-                </li>
-                <li>
-                  <kbd>F</kbd> player fullscreen
-                </li>
-                <li>
-                  <kbd>B</kbd> studio panel (fullscreen)
-                </li>
-                <li>
-                  <kbd>Ctrl</kbd>+<kbd>P</kbd> party mode
-                </li>
-                <li>
-                  <kbd>←</kbd> <kbd>→</kbd> seek 2s
-                </li>
-                <li>
-                  QWERTY on: Virtual Piano 1–m · Shift +1 hold · ←/→ oct ·
-                  ↑/↓ st · Space sustain · <kbd>Esc</kbd> exits fullscreen
-                </li>
-                <li>Tap or drag the on-screen keyboard to play</li>
-              </ul>
-            </section>
+              {sidebarTab === 'export' && (
+                <div className="sidebar-section" role="tabpanel">
+                  <ExportPanel
+                    hasSong={!!song}
+                    duration={song?.duration ?? 0}
+                    settings={exportSettings}
+                    progress={exportProgress}
+                    busy={exportBusy}
+                    onChange={setExportSettings}
+                    onStart={() => void startExport()}
+                    onCancel={cancelExport}
+                  />
+                  <details className="panel tips sidebar-tips">
+                    <summary>Shortcuts</summary>
+                    <ul>
+                      <li>
+                        <kbd>Space</kbd> play/pause
+                      </li>
+                      <li>
+                        <kbd>R</kbd> stop
+                      </li>
+                      <li>
+                        <kbd>F</kbd> player fullscreen
+                      </li>
+                      <li>
+                        <kbd>B</kbd> studio panel (fullscreen)
+                      </li>
+                      <li>
+                        <kbd>Ctrl</kbd>+<kbd>P</kbd> party mode
+                      </li>
+                      <li>
+                        <kbd>←</kbd> <kbd>→</kbd> seek 2s
+                      </li>
+                      <li>
+                        QWERTY on: Virtual Piano 1–m · Shift +1 hold · ←/→ oct · ↑/↓ st ·
+                        Space sustain · <kbd>Esc</kbd> exits fullscreen
+                      </li>
+                      <li>Tap or drag the on-screen keyboard to play</li>
+                    </ul>
+                  </details>
+                </div>
+              )}
+            </div>
           </aside>
         </div>
       </div>

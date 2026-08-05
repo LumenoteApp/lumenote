@@ -437,10 +437,20 @@ export class AudioEngine {
     midiIO.schedulePlaybackNote(type, pitch, velocity127, channel, audioTime, ctxTime);
   }
 
-  scheduleNotes(notes: NoteEvent[], tracks: TrackInfo[], fromTime: number) {
+  /**
+   * Schedule song notes from `fromTime` (song seconds).
+   * `tempoScale` > 1 plays faster (higher BPM): transport times are shortened.
+   */
+  scheduleNotes(
+    notes: NoteEvent[],
+    tracks: TrackInfo[],
+    fromTime: number,
+    tempoScale = 1,
+  ) {
     if (!this.Tone || !this.ready) return;
     this.clearSchedule();
 
+    const scale = Number.isFinite(tempoScale) && tempoScale > 0 ? tempoScale : 1;
     const muted = new Set(tracks.filter((t) => t.muted || !t.visible).map((t) => t.index));
     const transport = this.Tone.getTransport();
     const backend = this.getBackend();
@@ -452,10 +462,12 @@ export class AudioEngine {
       const soundDur = noteSoundDuration(n);
       if (n.start + soundDur < fromTime) continue;
 
-      const start = Math.max(0, n.start - fromTime);
+      // Wall/transport time = song-time delta / scale
+      const start = Math.max(0, n.start - fromTime) / scale;
       // Audio gate includes sustain pedal; visuals use n.duration separately
-      const duration =
+      const durationSong =
         n.start < fromTime ? soundDur - (fromTime - n.start) : soundDur;
+      const duration = durationSong / scale;
       if (duration <= 0.01) continue;
 
       const pitchMidi = n.pitch;

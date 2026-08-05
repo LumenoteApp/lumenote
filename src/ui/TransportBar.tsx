@@ -1,12 +1,14 @@
-import { formatBpm } from '../midi/types';
+import { BpmControl } from './BpmControl';
 
 type Props = {
   fileName: string | null;
   playing: boolean;
   currentTime: number;
   duration: number;
-  /** Active tempo at playhead; null when no song / unknown */
+  /** Effective tempo at playhead (includes user tempo scale); null when no song */
   bpm: number | null;
+  /** True when playback tempo differs from the MIDI file */
+  tempoEdited?: boolean;
   playerOnly: boolean;
   onHome: () => void;
   onOpen: () => void;
@@ -14,6 +16,12 @@ type Props = {
   onStop: () => void;
   onSeek: (t: number) => void;
   onTogglePlayerOnly: () => void;
+  /** Nudge effective BPM (e.g. +1 / -1). Shift-click uses ±5. */
+  onBpmDelta?: (delta: number) => void;
+  /** Set absolute effective BPM */
+  onBpmSet?: (bpm: number) => void;
+  /** Restore MIDI original tempo */
+  onBpmReset?: () => void;
 };
 
 function formatTime(sec: number) {
@@ -29,6 +37,7 @@ export function TransportBar({
   currentTime,
   duration,
   bpm,
+  tempoEdited = false,
   playerOnly,
   onHome,
   onOpen,
@@ -36,6 +45,9 @@ export function TransportBar({
   onStop,
   onSeek,
   onTogglePlayerOnly,
+  onBpmDelta,
+  onBpmSet,
+  onBpmReset,
 }: Props) {
   return (
     <header className={`transport ${playerOnly ? 'transport-hidden' : ''}`}>
@@ -68,11 +80,15 @@ export function TransportBar({
           <span className="time-sep">/</span>
           {formatTime(duration)}
         </span>
-        {bpm != null ? (
-          <span className="bpm" title="Tempo from MIDI">
-            {formatBpm(bpm)}
-            <span className="bpm-unit">BPM</span>
-          </span>
+        {bpm != null && onBpmDelta && onBpmSet ? (
+          <BpmControl
+            bpm={bpm}
+            disabled={!fileName}
+            tempoEdited={tempoEdited}
+            onDelta={onBpmDelta}
+            onSet={onBpmSet}
+            onReset={onBpmReset}
+          />
         ) : null}
       </div>
 

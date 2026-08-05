@@ -10,9 +10,8 @@ import {
   normalizeColorSettings,
 } from '../theme/colorPresets';
 import { randomizeColors } from '../theme/randomize';
-import { PanelHeader, RandomizeButton } from './RandomizeButton';
-
-void RandomizeButton;
+import { CollapsiblePanel } from './CollapsiblePanel';
+import { RandomizeButton } from './RandomizeButton';
 
 type Props = {
   tracks: TrackInfo[];
@@ -58,9 +57,11 @@ export function TrackPanel({ tracks, colors: colorsProp, onTracksChange, onColor
   };
 
   return (
-    <section className="panel">
-      <PanelHeader title="Colors" onRandomize={randomize} />
-
+    <CollapsiblePanel
+      id="look-colors"
+      title="Colors"
+      actions={<RandomizeButton onClick={randomize} label="Randomize" />}
+    >
       <p className="muted small">Note color mode</p>
       <div className="preset-grid">
         {COLOR_MODE_PRESETS.map((m) => {
@@ -251,6 +252,6 @@ export function TrackPanel({ tracks, colors: colorsProp, onTracksChange, onColor
           </ul>
         </>
       )}
-    </section>
+    </CollapsiblePanel>
   );
 }

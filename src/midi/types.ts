@@ -46,24 +46,86 @@ export type Song = {
   tempos: TempoEvent[];
 };
 
+/** MIDI default tempo when no setTempo event has occurred yet. */
+export const MIDI_DEFAULT_BPM = 120;
+
+/**
+ * Clean floating-point BPM from MIDI microsecond conversion
+ * (e.g. 119.9999998 → 120, 140.002 → 140).
+ */
+export function normalizeBpm(bpm: number): number {
+  if (!Number.isFinite(bpm) || bpm <= 0) return MIDI_DEFAULT_BPM;
+  const clamped = Math.min(400, Math.max(20, bpm));
+  const to3 = Math.round(clamped * 1000) / 1000;
+  const nearestInt = Math.round(to3);
+  if (Math.abs(to3 - nearestInt) < 0.05) return nearestInt;
+  const to1 = Math.round(to3 * 10) / 10;
+  if (Math.abs(to3 - to1) < 0.01) return to1;
+  return to3;
+}
+
 /**
  * Active BPM at song time (seconds). Tempos should be sorted by time.
- * Uses the last tempo whose time ≤ t; before the first event, uses the first BPM.
+ * Before the first setTempo event, uses MIDI default 120 (not the first
+ * change's value), matching the MIDI spec.
  */
 export function bpmAt(tempos: TempoEvent[] | undefined, time: number): number | null {
-  if (!tempos?.length) return null;
-  let bpm = tempos[0]!.bpm;
-  for (let i = 1; i < tempos.length; i++) {
-    if (tempos[i]!.time <= time) bpm = tempos[i]!.bpm;
-    else break;
+  if (!tempos?.length) return MIDI_DEFAULT_BPM;
+  const t = Number.isFinite(time) ? time : 0;
+  let bpm = MIDI_DEFAULT_BPM;
+  let saw = false;
+  for (const ev of tempos) {
+    if (ev.time <= t + 1e-9) {
+      bpm = ev.bpm;
+      saw = true;
+    } else {
+      break;
+    }
   }
-  return Number.isFinite(bpm) && bpm > 0 ? bpm : null;
+  // If the first event is at t≈0 and we haven't matched yet, still use it
+  // when playhead is at/near start (float noise).
+  if (!saw && tempos[0]!.time <= 1e-6) {
+    bpm = tempos[0]!.bpm;
+  }
+  return Number.isFinite(bpm) && bpm > 0 ? bpm : MIDI_DEFAULT_BPM;
 }
 
 /** Display helper: integer when whole, one decimal otherwise. */
 export function formatBpm(bpm: number): string {
   const r = Math.round(bpm * 10) / 10;
   return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+
+/** Clamp a user-facing tempo scale (0.25x–4x original). */
+export function clampTempoScale(scale: number): number {
+  if (!Number.isFinite(scale) || scale <= 0) return 1;
+  return Math.min(4, Math.max(0.25, scale));
+}
+
+/**
+ * Scale a song's timeline for export at a different tempo.
+ * `scale` > 1 = faster (higher BPM, shorter wall duration).
+ */
+export function scaleSongTempo(song: Song, scale: number): Song {
+  const s = clampTempoScale(scale);
+  if (Math.abs(s - 1) < 1e-6) return song;
+  return {
+    ...song,
+    duration: song.duration / s,
+    notes: song.notes.map((n) => ({
+      ...n,
+      start: n.start / s,
+      duration: n.duration / s,
+      soundDuration:
+        n.soundDuration != null && Number.isFinite(n.soundDuration)
+          ? n.soundDuration / s
+          : n.soundDuration,
+    })),
+    tempos: song.tempos.map((t) => ({
+      time: t.time / s,
+      bpm: normalizeBpm(t.bpm * s),
+    })),
+  };
 }
 
 /** Full particle look - driven by presets or manual sliders */

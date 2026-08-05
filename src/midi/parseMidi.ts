@@ -1,7 +1,7 @@
 import { Midi } from '@tonejs/midi';
 import { colorForTrack } from '../theme/defaultPalette';
-import type { NoteEvent, Song, TrackInfo } from './types';
-import { noteSoundDuration } from './types';
+import type { NoteEvent, Song, TempoEvent, TrackInfo } from './types';
+import { MIDI_DEFAULT_BPM, normalizeBpm, noteSoundDuration } from './types';
 
 /**
  * Empty time at the start of every loaded song so the first notes can
@@ -286,11 +286,7 @@ export async function parseMidiFile(
     ),
   );
 
-  const tempos =
-    midi.header.tempos?.map((t) => ({
-      time: (t.time ?? 0) + leadIn,
-      bpm: t.bpm,
-    })) ?? [{ time: 0, bpm: 120 }];
+  const tempos = buildTempoMap(midi.header.tempos, leadIn);
 
   return {
     name: displayName,
@@ -299,4 +295,53 @@ export async function parseMidiFile(
     notes,
     tempos,
   };
+}
+
+/**
+ * Build a clean tempo map for UI + playback display.
+ * - Converts Tone.js tempo events (ticks already → time on header)
+ * - Normalizes float BPM noise from µs/beat conversion
+ * - Ensures a value at song start (MIDI default 120 until first setTempo)
+ * - Drops redundant consecutive duplicates
+ */
+function buildTempoMap(
+  raw: Array<{ time?: number; bpm?: number; ticks?: number }> | undefined,
+  leadIn: number,
+): TempoEvent[] {
+  const events: TempoEvent[] = [];
+  if (raw?.length) {
+    for (const t of raw) {
+      const bpm = normalizeBpm(typeof t.bpm === 'number' ? t.bpm : MIDI_DEFAULT_BPM);
+      const time = (typeof t.time === 'number' && Number.isFinite(t.time) ? t.time : 0) + leadIn;
+      events.push({ time: Math.max(0, time), bpm });
+    }
+  }
+
+  events.sort((a, b) => a.time - b.time || a.bpm - b.bpm);
+
+  // MIDI default until the first setTempo (often missing at tick 0)
+  if (events.length === 0) {
+    return [{ time: 0, bpm: MIDI_DEFAULT_BPM }];
+  }
+  if (events[0]!.time > leadIn + 0.02) {
+    events.unshift({ time: 0, bpm: MIDI_DEFAULT_BPM });
+  } else {
+    // Snap near-start tempos to 0 so bpmAt(0) hits cleanly
+    events[0] = { ...events[0]!, time: 0, bpm: normalizeBpm(events[0]!.bpm) };
+  }
+
+  const deduped: TempoEvent[] = [];
+  for (const ev of events) {
+    const prev = deduped[deduped.length - 1];
+    if (prev && Math.abs(prev.bpm - ev.bpm) < 0.05 && Math.abs(prev.time - ev.time) < 0.001) {
+      continue;
+    }
+    if (prev && Math.abs(prev.bpm - ev.bpm) < 0.05) {
+      // Same BPM later - keep first only
+      continue;
+    }
+    deduped.push({ time: ev.time, bpm: normalizeBpm(ev.bpm) });
+  }
+
+  return deduped.length > 0 ? deduped : [{ time: 0, bpm: MIDI_DEFAULT_BPM }];
 }

@@ -17,10 +17,8 @@ import {
   randomizeParticles,
   randomizeVisuals,
 } from '../theme/randomize';
-import { PanelHeader, RandomizeButton } from './RandomizeButton';
-
-// Re-export path keeps HMR happy if a stale chunk still references RandomizeButton
-void RandomizeButton;
+import { CollapsiblePanel } from './CollapsiblePanel';
+import { RandomizeButton } from './RandomizeButton';
 
 type Props = {
   settings: VisualSettings;
@@ -174,12 +172,15 @@ export function SettingsPanel({ settings, onChange }: Props) {
 
   return (
     <>
-      <section className="panel">
-        <PanelHeader
-          title="Visuals"
-          onRandomize={() => onChange({ ...settings, ...randomizeVisuals() })}
-        />
-
+      <CollapsiblePanel
+        id="look-visuals"
+        title="Visuals"
+        actions={
+          <RandomizeButton
+            onClick={() => onChange({ ...settings, ...randomizeVisuals() })}
+          />
+        }
+      >
         <label className="field compact">
           <span className="field-label">
             Scroll speed
@@ -419,19 +420,24 @@ export function SettingsPanel({ settings, onChange }: Props) {
             onChange={(e) => set('backgroundColor', e.target.value)}
           />
         </label>
-      </section>
+      </CollapsiblePanel>
 
-      <section className="panel">
-        <PanelHeader
-          title="Music reactive"
-          onRandomize={() =>
-            onChange({
-              ...settings,
-              musicReactivePresetId: 'custom',
-              musicReactive: randomizeMusicReactive(),
-            })
-          }
-        />
+      <CollapsiblePanel
+        id="look-music"
+        title="Music reactive"
+        defaultOpen={false}
+        actions={
+          <RandomizeButton
+            onClick={() =>
+              onChange({
+                ...settings,
+                musicReactivePresetId: 'custom',
+                musicReactive: randomizeMusicReactive(),
+              })
+            }
+          />
+        }
+      >
         <p className="muted small">
           Particle animation that breathes with the notes - dust, rising streams, shockwaves.
         </p>
@@ -484,18 +490,23 @@ export function SettingsPanel({ settings, onChange }: Props) {
             </label>
           ))}
         </div>
-      </section>
+      </CollapsiblePanel>
 
-      <section className="panel">
-        <PanelHeader
-          title="Background"
-          onRandomize={() =>
-            onChange({
-              ...settings,
-              background: randomizeBackground(),
-            })
-          }
-        />
+      <CollapsiblePanel
+        id="look-background"
+        title="Background"
+        defaultOpen={false}
+        actions={
+          <RandomizeButton
+            onClick={() =>
+              onChange({
+                ...settings,
+                background: randomizeBackground(),
+              })
+            }
+          />
+        }
+      >
         <p className="muted small">Atmosphere behind the notes - reacts to what you play.</p>
 
         <div className="preset-grid">
@@ -532,21 +543,25 @@ export function SettingsPanel({ settings, onChange }: Props) {
             </label>
           ))}
         </div>
-      </section>
+      </CollapsiblePanel>
 
-      <section className="panel">
-        <PanelHeader
-          title="Particles"
-          onRandomize={() =>
-            onChange({
-              ...settings,
-              particlesEnabled: true,
-              particlePresetId: 'custom',
-              particles: randomizeParticles(),
-            })
-          }
-        />
-
+      <CollapsiblePanel
+        id="look-particles"
+        title="Particles"
+        defaultOpen={false}
+        actions={
+          <RandomizeButton
+            onClick={() =>
+              onChange({
+                ...settings,
+                particlesEnabled: true,
+                particlePresetId: 'custom',
+                particles: randomizeParticles(),
+              })
+            }
+          />
+        }
+      >
         <label className="field check">
           <input
             type="checkbox"
@@ -601,7 +616,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
             </label>
           ))}
         </div>
-      </section>
+      </CollapsiblePanel>
     </>
   );
 }
