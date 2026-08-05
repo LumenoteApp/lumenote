@@ -1427,3 +1427,162 @@ export function deleteUserPreset(id: string): boolean {
 export function getScenePreset(id: string): ScenePreset | undefined {
   return listAllPresets().find((p) => p.id === id);
 }
+
+/** Portable file format for custom scene presets (import / export). */
+export const USER_PRESET_FILE_FORMAT = 'lumenote-scene-presets' as const;
+export const USER_PRESET_FILE_VERSION = 1;
+
+export type UserPresetExportFile = {
+  format: typeof USER_PRESET_FILE_FORMAT;
+  version: number;
+  exportedAt: string;
+  presets: ScenePreset[];
+};
+
+function newUserPresetId(): string {
+  return `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function normalizeImportedPreset(raw: unknown): ScenePreset | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const p = raw as Partial<ScenePreset>;
+  const data = hydrateSceneData(p);
+  const name =
+    typeof p.name === 'string' && p.name.trim() ? p.name.trim() : 'Imported preset';
+  return {
+    ...data,
+    id: typeof p.id === 'string' && p.id ? p.id : newUserPresetId(),
+    name: name.slice(0, 80),
+    blurb: typeof p.blurb === 'string' && p.blurb.trim() ? p.blurb : 'Imported preset',
+    builtIn: false,
+    savedAt: typeof p.savedAt === 'string' ? p.savedAt : undefined,
+  };
+}
+
+/** Build a portable export object from user presets (built-ins stripped). */
+export function buildUserPresetExport(presets: ScenePreset[]): UserPresetExportFile {
+  const user = presets.filter((p) => !p.builtIn);
+  return {
+    format: USER_PRESET_FILE_FORMAT,
+    version: USER_PRESET_FILE_VERSION,
+    exportedAt: new Date().toISOString(),
+    presets: user.map((p) => ({
+      id: p.id,
+      name: p.name,
+      blurb: p.blurb,
+      builtIn: false,
+      savedAt: p.savedAt,
+      instrumentId: p.instrumentId,
+      volume: p.volume,
+      settings: cloneSettings(p.settings),
+    })),
+  };
+}
+
+export function serializeUserPresetsExport(presets: ScenePreset[]): string {
+  return JSON.stringify(buildUserPresetExport(presets), null, 2);
+}
+
+export type ParseUserPresetsResult =
+  | { ok: true; presets: ScenePreset[] }
+  | { ok: false; error: string };
+
+/**
+ * Parse a JSON string from an export file.
+ * Accepts the wrapper format, a bare array, or a single preset object.
+ */
+export function parseUserPresetsImport(raw: string): ParseUserPresetsResult {
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: 'That file is not valid JSON.' };
+  }
+
+  let list: unknown[] = [];
+  if (Array.isArray(data)) {
+    list = data;
+  } else if (data && typeof data === 'object') {
+    const obj = data as Record<string, unknown>;
+    if (Array.isArray(obj.presets)) {
+      if (
+        obj.format != null &&
+        obj.format !== USER_PRESET_FILE_FORMAT
+      ) {
+        return {
+          ok: false,
+          error: 'Unrecognized preset file format.',
+        };
+      }
+      list = obj.presets;
+    } else if (obj.settings || obj.instrumentId || obj.name) {
+      list = [obj];
+    } else {
+      return {
+        ok: false,
+        error: 'No presets found in that file.',
+      };
+    }
+  } else {
+    return { ok: false, error: 'No presets found in that file.' };
+  }
+
+  if (list.length === 0) {
+    return { ok: false, error: 'That file has no presets.' };
+  }
+
+  const presets: ScenePreset[] = [];
+  for (const item of list) {
+    const n = normalizeImportedPreset(item);
+    if (n) presets.push(n);
+  }
+
+  if (presets.length === 0) {
+    return { ok: false, error: 'Could not read any presets from that file.' };
+  }
+
+  return { ok: true, presets };
+}
+
+export type ImportUserPresetsOptions = {
+  /** merge (default) appends; replace overwrites all custom saves */
+  mode?: 'merge' | 'replace';
+  /** When true (default), assign fresh ids so re-imports never clobber existing ones */
+  remintIds?: boolean;
+};
+
+/**
+ * Write parsed user presets into localStorage.
+ * Returns how many were added and the new total count.
+ */
+export function importUserPresets(
+  incoming: ScenePreset[],
+  options: ImportUserPresetsOptions = {},
+): { added: number; total: number } {
+  const mode = options.mode ?? 'merge';
+  const remintIds = options.remintIds !== false;
+  const prepared = incoming
+    .filter((p) => !p.builtIn)
+    .map((p) => ({
+      ...hydrateSceneData(p),
+      id: remintIds ? newUserPresetId() : p.id || newUserPresetId(),
+      name: (p.name || 'Imported preset').slice(0, 80),
+      blurb: p.blurb || 'Imported preset',
+      builtIn: false as const,
+      savedAt: p.savedAt || new Date().toISOString(),
+    }));
+
+  if (prepared.length === 0) {
+    return { added: 0, total: readUserPresets().length };
+  }
+
+  const next =
+    mode === 'replace' ? prepared : [...prepared, ...readUserPresets()];
+  writeUserPresets(next);
+  return { added: prepared.length, total: next.length };
+}
+
+/** Convenience: export current custom saves (from storage). */
+export function exportStoredUserPresetsJson(): string {
+  return serializeUserPresetsExport(readUserPresets());
+}

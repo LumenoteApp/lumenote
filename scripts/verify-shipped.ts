@@ -13,10 +13,13 @@ import { BACKGROUND_PRESETS } from '../src/theme/backgroundPresets.ts';
 import { getProductStats } from '../src/theme/productStats.ts';
 import {
   BUILTIN_SCENE_PRESETS,
+  USER_PRESET_FILE_FORMAT,
   countBuiltInPresets,
   getBuiltInCategoryIdsInUse,
   listBuiltInCategories,
   listBuiltInsByCategory,
+  parseUserPresetsImport,
+  serializeUserPresetsExport,
 } from '../src/theme/scenePresets.ts';
 import type { TrackInfo } from '../src/midi/types.ts';
 
@@ -64,6 +67,53 @@ const panelSrc = readFileSync(join(root, 'src/ui/ScenePresetPanel.tsx'), 'utf8')
 assert.match(panelSrc, /scene-cat-row/);
 assert.match(panelSrc, /listBuiltInsByCategory/);
 assert.match(panelSrc, /SCENE_CATEGORIES|categoryMeta/);
+assert.match(panelSrc, /parseUserPresetsImport/);
+assert.match(panelSrc, /serializeUserPresetsExport/);
+assert.match(panelSrc, /Import/);
+assert.match(panelSrc, /Export/);
+assert.match(panelSrc, /user-preset-io/);
+
+// ── User preset import / export (pure) ──
+{
+  const sample = serializeUserPresetsExport([
+    {
+      ...BUILTIN_SCENE_PRESETS[0]!,
+      id: 'user-test-1',
+      name: 'My export',
+      blurb: 'test',
+      builtIn: false,
+      savedAt: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+  const wrapped = parseUserPresetsImport(sample);
+  assert.equal(wrapped.ok, true);
+  if (wrapped.ok) {
+    assert.equal(wrapped.presets.length, 1);
+    assert.equal(wrapped.presets[0]!.name, 'My export');
+    assert.equal(wrapped.presets[0]!.builtIn, false);
+    assert.ok(wrapped.presets[0]!.settings.background);
+  }
+  const parsedFile = JSON.parse(sample) as { format: string };
+  assert.equal(parsedFile.format, USER_PRESET_FILE_FORMAT);
+
+  const bare = parseUserPresetsImport(
+    JSON.stringify([
+      {
+        name: 'Bare',
+        instrumentId: 'piano',
+        volume: 0.5,
+        settings: BUILTIN_SCENE_PRESETS[0]!.settings,
+      },
+    ]),
+  );
+  assert.equal(bare.ok, true);
+  if (bare.ok) assert.equal(bare.presets[0]!.name, 'Bare');
+
+  const bad = parseUserPresetsImport('{ "nope": true }');
+  assert.equal(bad.ok, false);
+  const junk = parseUserPresetsImport('not-json');
+  assert.equal(junk.ok, false);
+}
 
 // ── New FX styles in shared registry ──
 const newStyles = ['rain', 'radar', 'warp'] as const;

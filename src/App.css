@@ -425,9 +425,34 @@
   color: rgba(255, 204, 128, 0.75) !important;
 }
 
+.user-preset-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.user-preset-io {
+  display: flex;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.user-preset-io .btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.scene-io-note {
+  margin-top: 0.35rem !important;
+  color: rgba(160, 220, 255, 0.8) !important;
+}
+
 .user-preset-list {
   list-style: none;
-  margin: 0;
+  margin: 0.4rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
