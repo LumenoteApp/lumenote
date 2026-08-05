@@ -3,7 +3,7 @@
 ## Setup
 
 ```bash
-git clone https://github.com/UnSlopd/lumenote.git
+git clone https://github.com/LumenoteApp/lumenote.git
 cd lumenote
 npm install
 npm run dev
@@ -77,7 +77,7 @@ Bake and live play share the **same song timeline**, including `SONG_LEAD_IN_SEC
 
 ```bash
 git remote -v
-# origin → https://github.com/UnSlopd/lumenote.git
+# origin → https://github.com/LumenoteApp/lumenote.git
 
 git status
 git add -A
@@ -85,7 +85,7 @@ git commit -m "message"
 git push origin master
 ```
 
-`gh` CLI authenticated as **UnSlopd**.
+`gh` CLI authenticated as **LumenoteApp**.
 
 ## Do not
 

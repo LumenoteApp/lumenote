@@ -292,7 +292,7 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
         <div className="home-foot-actions">
           <a
             className="home-foot-link"
-            href="https://github.com/UnSlopd/lumenote"
+            href="https://github.com/LumenoteApp/lumenote"
             target="_blank"
             rel="noreferrer"
           >

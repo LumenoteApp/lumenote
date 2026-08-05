@@ -25,10 +25,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/stars/UnSlopd/lumenote?style=flat-square&color=4FC3F7" alt="Stars" />
-  <img src="https://img.shields.io/github/forks/UnSlopd/lumenote?style=flat-square&color=F48FB1" alt="Forks" />
-  <img src="https://img.shields.io/github/last-commit/UnSlopd/lumenote?style=flat-square&color=CE93D8" alt="Last commit" />
-  <img src="https://img.shields.io/github/languages/top/UnSlopd/lumenote?style=flat-square&color=80CBC4" alt="Top language" />
+  <img src="https://img.shields.io/github/stars/LumenoteApp/lumenote?style=flat-square&color=4FC3F7" alt="Stars" />
+  <img src="https://img.shields.io/github/forks/LumenoteApp/lumenote?style=flat-square&color=F48FB1" alt="Forks" />
+  <img src="https://img.shields.io/github/last-commit/LumenoteApp/lumenote?style=flat-square&color=CE93D8" alt="Last commit" />
+  <img src="https://img.shields.io/github/languages/top/LumenoteApp/lumenote?style=flat-square&color=80CBC4" alt="Top language" />
   <img src="https://img.shields.io/badge/platform-browser-A5D6A7?style=flat-square" alt="Browser" />
 </p>
 
@@ -96,7 +96,7 @@ Lumenote is a **local-first web app** you own: load a multi-track MIDI, paint th
 ## Quick start
 
 ```bash
-git clone https://github.com/UnSlopd/lumenote.git
+git clone https://github.com/LumenoteApp/lumenote.git
 cd lumenote
 npm install
 npm run dev
@@ -185,7 +185,7 @@ PRs and issues welcome.
 
 ## License
 
-[MIT](LICENSE) © UnSlopd
+[MIT](LICENSE) © LumenoteApp
 
 ---
 

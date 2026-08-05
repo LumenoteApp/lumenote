@@ -7,7 +7,7 @@ You are working on **Lumenote**, a browser MIDI piano visualizer.
 1. If present, read **`docs/SESSION_NOTES.md`** (local handoff only - not on GitHub).  
 2. Skim **`docs/ARCHITECTURE.md`** if touching engine/render.  
 3. Project root: the clone of this repo (folder name may vary).  
-4. Remote: `https://github.com/UnSlopd/lumenote`
+4. Remote: `https://github.com/LumenoteApp/lumenote`
 
 ## Hard rules
 
@@ -29,6 +29,6 @@ npm run build
 
 ```
 Continue Lumenote (multi-track MIDI visualizer).
-Clone: https://github.com/UnSlopd/lumenote
+Clone: https://github.com/LumenoteApp/lumenote
 Read docs/ARCHITECTURE.md (and docs/SESSION_NOTES.md if it exists locally).
 ```
