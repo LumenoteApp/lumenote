@@ -136,8 +136,6 @@ export const MUSIC_REACTIVE_PRESETS: MusicReactivePreset[] = [
   },
 ];
 
-export { randomizeMusicReactive } from './randomize';
-
 export function getMusicPreset(id: string): MusicReactivePreset {
   return MUSIC_REACTIVE_PRESETS.find((p) => p.id === id) ?? MUSIC_REACTIVE_PRESETS[0];
 }

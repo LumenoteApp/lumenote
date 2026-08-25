@@ -1,36 +1,27 @@
+import { useRef } from 'react';
 import type {
   BackgroundParams,
-  MusicReactiveParams,
+  EffectsParams,
   NoteStyleParams,
-  ParticleParams,
   VisualSettings,
 } from '../midi/types';
 import { BACKGROUND_PRESETS } from '../theme/backgroundPresets';
-import { MUSIC_REACTIVE_PRESETS } from '../theme/musicReactivePresets';
+import { EFFECTS_PRESETS, getEffectsPreset } from '../theme/effects';
 import { HIT_RAIL_STYLE_PRESETS } from '../theme/hitRailPresets';
 import { NOTE_STYLE_PRESETS } from '../theme/notePresets';
-import { PARTICLE_PRESETS } from '../theme/particlePresets';
 import {
   randomizeBackground,
-  randomizeMusicReactive,
+  randomizeEffects,
   randomizeNoteStyle,
-  randomizeParticles,
   randomizeVisuals,
 } from '../theme/randomize';
+import { fileToStageImageSrc, normalizeStageImage } from '../theme/stageImage';
 import { CollapsiblePanel } from './CollapsiblePanel';
 import { RandomizeButton } from './RandomizeButton';
 
 type Props = {
   settings: VisualSettings;
   onChange: (s: VisualSettings) => void;
-};
-
-type SliderDef = {
-  key: keyof ParticleParams;
-  label: string;
-  min: number;
-  max: number;
-  step: number;
 };
 
 type BgSliderDef = {
@@ -40,26 +31,6 @@ type BgSliderDef = {
   max: number;
   step: number;
 };
-
-const PARTICLE_SLIDERS: SliderDef[] = [
-  { key: 'density', label: 'Density', min: 0.1, max: 2.2, step: 0.05 },
-  { key: 'size', label: 'Size', min: 0.3, max: 2.2, step: 0.05 },
-  { key: 'sizeVariance', label: 'Size variance', min: 0, max: 1, step: 0.05 },
-  { key: 'speed', label: 'Speed', min: 0.2, max: 2.2, step: 0.05 },
-  { key: 'spread', label: 'Spread', min: 0, max: 1, step: 0.05 },
-  { key: 'gravity', label: 'Gravity', min: -1.2, max: 1.8, step: 0.05 },
-  { key: 'drag', label: 'Drag', min: 0, max: 1, step: 0.05 },
-  { key: 'lifetime', label: 'Lifetime', min: 0.25, max: 2.2, step: 0.05 },
-  { key: 'turbulence', label: 'Turbulence', min: 0, max: 1.2, step: 0.05 },
-  { key: 'sparkle', label: 'Sparkle', min: 0, max: 1, step: 0.05 },
-  { key: 'bloom', label: 'Bloom', min: 0.4, max: 2.2, step: 0.05 },
-  { key: 'secondaryBurst', label: 'Burst ring', min: 0, max: 1.2, step: 0.05 },
-  { key: 'trail', label: 'Trails', min: 0, max: 1, step: 0.05 },
-  { key: 'whiteHot', label: 'White-hot core', min: 0, max: 1, step: 0.05 },
-  { key: 'swirl', label: 'Swirl', min: 0, max: 1.2, step: 0.05 },
-  { key: 'sustainEmit', label: 'Sustain glow', min: 0, max: 1.2, step: 0.05 },
-  { key: 'hitFlash', label: 'Hit flash', min: 0, max: 1.2, step: 0.05 },
-];
 
 const BG_SLIDERS: BgSliderDef[] = [
   { key: 'intensity', label: 'Intensity', min: 0, max: 1.2, step: 0.05 },
@@ -71,35 +42,28 @@ const BG_SLIDERS: BgSliderDef[] = [
   { key: 'beams', label: 'Light beams', min: 0, max: 1, step: 0.05 },
 ];
 
-type MusicSliderDef = {
-  key: keyof MusicReactiveParams;
+type EffectSliderDef = {
+  key: keyof EffectsParams;
   label: string;
   min: number;
   max: number;
   step: number;
 };
 
-const MUSIC_SLIDERS: MusicSliderDef[] = [
+const EFFECT_SLIDERS: EffectSliderDef[] = [
   { key: 'intensity', label: 'Intensity', min: 0, max: 1.4, step: 0.05 },
+  { key: 'sparks', label: 'Hit sparks', min: 0, max: 1.4, step: 0.05 },
   { key: 'ambient', label: 'Ambient dust', min: 0, max: 1.4, step: 0.05 },
-  { key: 'columns', label: 'Rising streams', min: 0, max: 1.4, step: 0.05 },
-  { key: 'waves', label: 'Shockwaves', min: 0, max: 1.4, step: 0.05 },
+  { key: 'streams', label: 'Rising streams', min: 0, max: 1.4, step: 0.05 },
   { key: 'bassPulse', label: 'Bass pulse', min: 0, max: 1.4, step: 0.05 },
   { key: 'attack', label: 'Attack snap', min: 0.1, max: 1.2, step: 0.05 },
 ];
 
 export function SettingsPanel({ settings, onChange }: Props) {
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
   const set = <K extends keyof VisualSettings>(key: K, value: VisualSettings[K]) => {
     onChange({ ...settings, [key]: value });
-  };
-
-  const setParticle = <K extends keyof ParticleParams>(key: K, value: ParticleParams[K]) => {
-    onChange({
-      ...settings,
-      particlesEnabled: true,
-      particlePresetId: 'custom',
-      particles: { ...settings.particles, [key]: value },
-    });
   };
 
   const setBg = <K extends keyof BackgroundParams>(key: K, value: BackgroundParams[K]) => {
@@ -109,14 +73,13 @@ export function SettingsPanel({ settings, onChange }: Props) {
     });
   };
 
-  const setMusic = <K extends keyof MusicReactiveParams>(key: K, value: MusicReactiveParams[K]) => {
+  const setEffect = <K extends keyof EffectsParams>(key: K, value: EffectsParams[K]) => {
     onChange({
       ...settings,
-      musicReactivePresetId: 'custom',
-      musicReactive: {
-        ...settings.musicReactive,
+      effectsPresetId: 'custom',
+      effects: {
+        ...settings.effects,
         [key]: value,
-        // Tweaking a slider while Off turns the section back on
         ...(key === 'enabled' ? {} : { enabled: true }),
       },
     });
@@ -140,24 +103,12 @@ export function SettingsPanel({ settings, onChange }: Props) {
     });
   };
 
-  const applyMusicPreset = (id: string) => {
-    const preset = MUSIC_REACTIVE_PRESETS.find((p) => p.id === id);
-    if (!preset) return;
+  const applyEffectsPreset = (id: string) => {
+    const preset = getEffectsPreset(id);
     onChange({
       ...settings,
-      musicReactivePresetId: id,
-      musicReactive: { ...preset.params },
-    });
-  };
-
-  const applyParticlePreset = (id: string) => {
-    const preset = PARTICLE_PRESETS.find((p) => p.id === id);
-    if (!preset) return;
-    onChange({
-      ...settings,
-      particlePresetId: id,
-      particles: { ...preset.params },
-      particlesEnabled: true,
+      effectsPresetId: id,
+      effects: { ...preset.params },
     });
   };
 
@@ -170,8 +121,9 @@ export function SettingsPanel({ settings, onChange }: Props) {
     });
   };
 
-  const p = settings.particles;
+  const fx = settings.effects;
   const bg = settings.background;
+  const stage = settings.stageImage;
   // Prefer style chip when on; highlight Off chip only when disabled
   const activeBgId: string = !bg.enabled ? 'off' : bg.style;
 
@@ -180,8 +132,11 @@ export function SettingsPanel({ settings, onChange }: Props) {
       <CollapsiblePanel
         id="look-visuals"
         title="Notes"
+        defaultOpen={false}
         actions={
           <RandomizeButton
+            label="Random"
+            subtle
             onClick={() => onChange({ ...settings, ...randomizeVisuals() })}
           />
         }
@@ -231,8 +186,8 @@ export function SettingsPanel({ settings, onChange }: Props) {
         </label>
 
         <div className="field" style={{ marginTop: '0.65rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="field-label">Note style</span>
+          <div className="field-label">
+            <span>Note style</span>
             <button
               type="button"
               className="btn tiny"
@@ -343,7 +298,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
         enabled={settings.showKeyboard}
         onEnabledChange={(on) => set('showKeyboard', on)}
       >
-        <p className="muted small">On-screen piano under the falling notes.</p>
+        <p className="muted small">Height of the drawn piano.</p>
         <label className="field compact">
           <span className="field-label">
             Piano height
@@ -373,7 +328,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
         enabled={settings.showHitRail}
         onEnabledChange={(on) => set('showHitRail', on)}
       >
-        <p className="muted small">Hit line above the keyboard - blooms when notes land.</p>
+        <p className="muted small">Bloom when notes land.</p>
         <div className="field" style={{ marginTop: '0.4rem' }}>
           <span className="field-label">Rail style</span>
           <div className="preset-grid" style={{ marginTop: '0.35rem' }}>
@@ -443,67 +398,67 @@ export function SettingsPanel({ settings, onChange }: Props) {
       </CollapsiblePanel>
 
       <CollapsiblePanel
-        id="look-music"
-        title="Music reactive"
+        id="look-effects"
+        title="Effects"
         defaultOpen={false}
-        enabled={settings.musicReactive.enabled}
+        enabled={fx.enabled}
         onEnabledChange={(on) =>
           onChange({
             ...settings,
-            musicReactive: { ...settings.musicReactive, enabled: on },
+            effects: { ...fx, enabled: on },
           })
         }
-        actions={
+      >
+        <div className="field" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <p className="muted small" style={{ margin: 0 }}>
+            Hit sparks, dust, streams, and bass pulse as one mix.
+          </p>
           <RandomizeButton
             onClick={() =>
               onChange({
                 ...settings,
-                musicReactivePresetId: 'custom',
-                musicReactive: randomizeMusicReactive(),
+                effectsPresetId: 'custom',
+                effects: randomizeEffects(),
               })
             }
           />
-        }
-      >
-        <p className="muted small">
-          Particle animation that breathes with the notes - dust, rising streams, shockwaves.
-        </p>
+        </div>
 
         <div className="preset-grid" style={{ marginTop: '0.5rem' }}>
-          {MUSIC_REACTIVE_PRESETS.map((pr) => (
+          {EFFECTS_PRESETS.map((pr) => (
             <button
               key={pr.id}
               type="button"
-              className={`preset-chip ${settings.musicReactivePresetId === pr.id ? 'active' : ''}`}
+              className={`preset-chip ${settings.effectsPresetId === pr.id ? 'active' : ''}`}
               title={pr.blurb}
-              onClick={() => applyMusicPreset(pr.id)}
+              onClick={() => applyEffectsPreset(pr.id)}
             >
               <span className="preset-name">{pr.name}</span>
               <span className="preset-blurb">{pr.blurb}</span>
             </button>
           ))}
-          {settings.musicReactivePresetId === 'custom' && (
+          {settings.effectsPresetId === 'custom' && (
             <div className="preset-chip active custom-tag">
               <span className="preset-name">Custom</span>
-              <span className="preset-blurb">Manual / random mix</span>
+              <span className="preset-blurb">Manual mix</span>
             </div>
           )}
         </div>
 
         <div className="param-stack" style={{ marginTop: '0.65rem' }}>
-          {MUSIC_SLIDERS.map((sl) => (
+          {EFFECT_SLIDERS.map((sl) => (
             <label key={sl.key} className="field compact">
               <span className="field-label">
                 {sl.label}
-                <em>{Number(settings.musicReactive[sl.key]).toFixed(2)}</em>
+                <em>{Number(fx[sl.key]).toFixed(2)}</em>
               </span>
               <input
                 type="range"
                 min={sl.min}
                 max={sl.max}
                 step={sl.step}
-                value={Number(settings.musicReactive[sl.key])}
-                onChange={(e) => setMusic(sl.key, Number(e.target.value) as never)}
+                value={Number(fx[sl.key])}
+                onChange={(e) => setEffect(sl.key, Number(e.target.value) as never)}
               />
             </label>
           ))}
@@ -534,6 +489,125 @@ export function SettingsPanel({ settings, onChange }: Props) {
       >
         <p className="muted small">Atmosphere behind the notes - reacts to what you play.</p>
 
+        <div className="stage-image-block">
+          <span className="field-label">Stage image</span>
+          <p className="muted small">Paints under the notes in live view and baked export.</p>
+          <div className="stage-image-row">
+            <button
+              type="button"
+              className="btn compact-btn"
+              onClick={() => imageInputRef.current?.click()}
+            >
+              {stage.src ? 'Change image' : 'Add image'}
+            </button>
+            {stage.src ? (
+              <button
+                type="button"
+                className="btn compact-btn"
+                onClick={() =>
+                  onChange({
+                    ...settings,
+                    stageImage: normalizeStageImage({ enabled: false, src: '' }),
+                  })
+                }
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (!f) return;
+              void fileToStageImageSrc(f)
+                .then((src) => {
+                  onChange({
+                    ...settings,
+                    stageImage: normalizeStageImage({
+                      ...stage,
+                      enabled: true,
+                      src,
+                    }),
+                  });
+                })
+                .catch(() => {
+                  /* ignore unreadable files */
+                });
+            }}
+          />
+          {stage.src ? (
+            <>
+              <label className="midi-check">
+                <input
+                  type="checkbox"
+                  checked={stage.enabled}
+                  onChange={(e) =>
+                    onChange({
+                      ...settings,
+                      stageImage: { ...stage, enabled: e.target.checked },
+                    })
+                  }
+                />
+                <span>Show image</span>
+              </label>
+              <label className="field compact">
+                <span className="field-label">
+                  Image opacity
+                  <em>{stage.opacity.toFixed(2)}</em>
+                </span>
+                <input
+                  type="range"
+                  min={0.1}
+                  max={1}
+                  step={0.05}
+                  value={stage.opacity}
+                  onChange={(e) =>
+                    onChange({
+                      ...settings,
+                      stageImage: {
+                        ...stage,
+                        enabled: true,
+                        opacity: Number(e.target.value),
+                      },
+                    })
+                  }
+                />
+              </label>
+              <div className="stage-image-fit">
+                <button
+                  type="button"
+                  className={`btn tiny ${stage.fit === 'cover' ? 'primary' : ''}`}
+                  onClick={() =>
+                    onChange({
+                      ...settings,
+                      stageImage: { ...stage, fit: 'cover', enabled: true },
+                    })
+                  }
+                >
+                  Cover
+                </button>
+                <button
+                  type="button"
+                  className={`btn tiny ${stage.fit === 'contain' ? 'primary' : ''}`}
+                  onClick={() =>
+                    onChange({
+                      ...settings,
+                      stageImage: { ...stage, fit: 'contain', enabled: true },
+                    })
+                  }
+                >
+                  Contain
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
+
         <div className="preset-grid">
           {BACKGROUND_PRESETS.map((pr) => (
             <button
@@ -563,72 +637,6 @@ export function SettingsPanel({ settings, onChange }: Props) {
                 step={sl.step}
                 value={Number(bg[sl.key])}
                 onChange={(e) => setBg(sl.key, Number(e.target.value) as never)}
-              />
-            </label>
-          ))}
-        </div>
-      </CollapsiblePanel>
-
-      <CollapsiblePanel
-        id="look-particles"
-        title="Particles"
-        defaultOpen={false}
-        enabled={settings.particlesEnabled}
-        onEnabledChange={(on) => set('particlesEnabled', on)}
-        actions={
-          <RandomizeButton
-            onClick={() =>
-              onChange({
-                ...settings,
-                particlesEnabled: true,
-                particlePresetId: 'custom',
-                particles: randomizeParticles(),
-              })
-            }
-          />
-        }
-      >
-        <p className="muted small">Hit sparks and sustain trails when notes land.</p>
-
-        <p className="muted small">Presets</p>
-        <div className="preset-grid">
-          {PARTICLE_PRESETS.filter((pr) => pr.id !== 'custom').map((pr) => (
-            <button
-              key={pr.id}
-              type="button"
-              className={`preset-chip ${settings.particlePresetId === pr.id ? 'active' : ''}`}
-              title={pr.blurb}
-              onClick={() => applyParticlePreset(pr.id)}
-            >
-              <span className="preset-name">{pr.name}</span>
-              <span className="preset-blurb">{pr.blurb}</span>
-            </button>
-          ))}
-          {settings.particlePresetId === 'custom' && (
-            <div className="preset-chip active custom-tag">
-              <span className="preset-name">Custom</span>
-              <span className="preset-blurb">Manual / random mix</span>
-            </div>
-          )}
-        </div>
-
-        <p className="muted small" style={{ marginTop: '0.75rem' }}>
-          Parameters
-        </p>
-        <div className="param-stack">
-          {PARTICLE_SLIDERS.map((sl) => (
-            <label key={sl.key} className="field compact">
-              <span className="field-label">
-                {sl.label}
-                <em>{Number(p[sl.key]).toFixed(2)}</em>
-              </span>
-              <input
-                type="range"
-                min={sl.min}
-                max={sl.max}
-                step={sl.step}
-                value={p[sl.key]}
-                onChange={(e) => setParticle(sl.key, Number(e.target.value))}
               />
             </label>
           ))}

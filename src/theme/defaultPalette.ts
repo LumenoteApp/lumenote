@@ -2,7 +2,8 @@ import type { VisualSettings } from '../midi/types';
 import { DEFAULT_BACKGROUND } from './backgroundPresets';
 import { DEFAULT_COLOR_SETTINGS } from './colorPresets';
 import { DEFAULT_NOTE_STYLE } from './notePresets';
-import { getPreset } from './particlePresets';
+import { DEFAULT_EFFECTS, DEFAULT_EFFECTS_PRESET_ID } from './effects';
+import { DEFAULT_STAGE_IMAGE } from './stageImage';
 
 /** Distinct hues for multi-track coloring (LH/RH etc.) */
 export const TRACK_PALETTE = [
@@ -24,28 +25,16 @@ export function colorForTrack(index: number): string {
   return TRACK_PALETTE[index % TRACK_PALETTE.length];
 }
 
-const ember = getPreset('ember');
-
 export const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
   pixelsPerSecond: 280,
   noteOpacity: 0.92,
   glowStrength: 0.65,
   notes: { ...DEFAULT_NOTE_STYLE },
   noteStylePresetId: 'solid',
-  particlesEnabled: true,
-  particlePresetId: 'ember',
-  particles: { ...ember.params },
+  effectsPresetId: DEFAULT_EFFECTS_PRESET_ID,
+  effects: { ...DEFAULT_EFFECTS },
   background: { ...DEFAULT_BACKGROUND },
-  musicReactive: {
-    enabled: true,
-    intensity: 0.95,
-    ambient: 0.75,
-    columns: 0.85,
-    waves: 0.8,
-    bassPulse: 0.7,
-    attack: 0.75,
-  },
-  musicReactivePresetId: 'balanced',
+  stageImage: { ...DEFAULT_STAGE_IMAGE },
   colors: { ...DEFAULT_COLOR_SETTINGS },
   backgroundColor: '#07080c',
   showKeyboard: true,

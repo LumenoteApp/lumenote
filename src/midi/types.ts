@@ -199,15 +199,48 @@ export type BackgroundParams = {
   reactive: number;
 };
 
-/** Ambient particle animation driven by note energy / pitch bands */
+/** Ambient particle animation driven by note energy / pitch bands (legacy scenes). */
 export type MusicReactiveParams = {
   enabled: boolean;
   intensity: number;
   ambient: number;
   columns: number;
+  /** @deprecated Expanding shockwave rings — ignored on hydrate. */
   waves: number;
   bassPulse: number;
   attack: number;
+};
+
+/**
+ * Combined hit sparks + music-reactive field.
+ * Small user-facing set; internal particle physics is derived from these knobs.
+ */
+export type EffectsParams = {
+  enabled: boolean;
+  /** Overall mix 0-1.4 */
+  intensity: number;
+  /** Note-hit sparks 0-1.4 */
+  sparks: number;
+  /** Ambient floating dust 0-1.4 */
+  ambient: number;
+  /** Rising streams from keys 0-1.4 */
+  streams: number;
+  /** Bass boom / screen pulse 0-1.4 */
+  bassPulse: number;
+  /** Hit snap / attack 0.1-1.2 */
+  attack: number;
+};
+
+/** User photo or artwork painted under falling notes (live + bake). */
+export type StageImageFit = 'cover' | 'contain';
+
+export type StageImageSettings = {
+  enabled: boolean;
+  /** data: URL or empty */
+  src: string;
+  /** 0-1 */
+  opacity: number;
+  fit: StageImageFit;
 };
 
 export type ColorMode =
@@ -270,12 +303,10 @@ export type VisualSettings = {
   /** Falling note bar look (fill, border, internal FX) */
   notes: NoteStyleParams;
   noteStylePresetId: string;
-  particlesEnabled: boolean;
-  particlePresetId: string;
-  particles: ParticleParams;
+  effectsPresetId: string;
+  effects: EffectsParams;
   background: BackgroundParams;
-  musicReactive: MusicReactiveParams;
-  musicReactivePresetId: string;
+  stageImage: StageImageSettings;
   colors: ColorSettings;
   backgroundColor: string;
   showKeyboard: boolean;

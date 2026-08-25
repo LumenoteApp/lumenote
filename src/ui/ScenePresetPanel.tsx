@@ -150,6 +150,7 @@ export function ScenePresetPanel({
 
   return (
     <CollapsiblePanel id="scene-presets" title="Presets" className="scene-preset-panel">
+      <p className="muted small">Looks change the stage. Volume and instrument stay global.</p>
       {activePreset && (
         <p className="scene-active-line muted small" title={activePreset.blurb}>
           Active: <strong>{activePreset.name}</strong>

@@ -22,11 +22,16 @@ import {
   normalizeHitRailEnergy,
   normalizeHitRailStyle,
 } from '../theme/hitRailPresets';
+import { effectsToParticleParams } from '../theme/effects';
+import {
+  paintUserStageImage,
+  shouldPaintStageImage,
+} from '../theme/stageImage';
 
 const DEFAULT_KEYBOARD_H = 200;
 const MIN_KEYBOARD_H = 100;
 const MAX_KEYBOARD_H = 280;
-const HIT_LINE_PAD = 10;
+/** Hit rail sits on the piano top (no gap between notes and keys). */
 
 export function resolveKeyboardH(settings: VisualSettings): number {
   if (!settings.showKeyboard) return 28;
@@ -95,6 +100,8 @@ export class VisualizerEngine {
   private onsetAcc = 0;
   private bgStyle = '';
   private hitCursor = 0;
+  private stageImageEl: HTMLImageElement | null = null;
+  private stageImageSrc = '';
 
   reset() {
     this.particles.clear();
@@ -104,6 +111,31 @@ export class VisualizerEngine {
     this.hitCursor = 0;
     this.bgStyle = '';
     this.background = new BackgroundEffects();
+    this.stageImageEl = null;
+    this.stageImageSrc = '';
+  }
+
+  /** Decode a user background image so bake frames do not miss the first seconds. */
+  async prepareStageImage(settings: VisualSettings): Promise<void> {
+    const img = settings.stageImage;
+    if (!shouldPaintStageImage(img) || !img.src) return;
+    const el = this.ensureStageImage(img.src);
+    if (!el) return;
+    try {
+      await el.decode();
+    } catch {
+      /* decode can fail on empty/corrupt data URLs */
+    }
+  }
+
+  private ensureStageImage(src: string): HTMLImageElement | null {
+    if (typeof Image === 'undefined') return null;
+    if (this.stageImageEl && this.stageImageSrc === src) return this.stageImageEl;
+    const el = new Image();
+    el.src = src;
+    this.stageImageEl = el;
+    this.stageImageSrc = src;
+    return el;
   }
 
   /** Force background reseed (e.g. after canvas resize). */
@@ -127,7 +159,7 @@ export class VisualizerEngine {
     if (track && !track.visible) return;
     const trackColor = track?.color ?? '#4FC3F7';
     const keyboardH = resolveKeyboardH(settings);
-    const hitY = h - keyboardH - HIT_LINE_PAD;
+    const hitY = h - keyboardH;
     const x = pitchToX(note.pitch, w);
     const color = resolveNoteColor({
       trackColor,
@@ -142,8 +174,14 @@ export class VisualizerEngine {
     if (settings.showHitRail) {
       this.hitRail.hit(x, color, note.velocity);
     }
-    if (settings.particlesEnabled) {
-      this.particles.spawn(x, hitY, color, note.velocity, settings.particles);
+    if (settings.effects.enabled && settings.effects.sparks > 0.02) {
+      this.particles.spawn(
+        x,
+        hitY,
+        color,
+        note.velocity,
+        effectsToParticleParams(settings.effects),
+      );
     }
   }
 
@@ -166,10 +204,13 @@ export class VisualizerEngine {
       keyLabels = null,
     } = input;
     const dt = Math.min(0.05, Math.max(0, rawDt));
-    const particleParams = s.particles;
+    const fx = s.effects;
+    const particleParams = effectsToParticleParams(fx);
+    const sparksOn = fx.enabled && fx.sparks > 0.02 && fx.intensity > 0.01;
+    const fieldOn = fx.enabled && fx.intensity > 0.01;
     const bgParams = s.background;
     const keyboardH = resolveKeyboardH(s);
-    const hitY = h - keyboardH - HIT_LINE_PAD;
+    const hitY = h - keyboardH;
     const pps = s.pixelsPerSecond;
 
     // Offline: fire hits for notes that crossed the playhead this step
@@ -271,11 +312,27 @@ export class VisualizerEngine {
       energy * (0.5 + bgParams.reactive * 0.7) + this.musicField.getBassKick() * 0.35,
     );
     this.background.update(dt, bgEnergy, bgParams);
-    this.background.draw(ctx, w, h, s.backgroundColor, colors, bgParams);
+    this.background.draw(ctx, w, h, s.backgroundColor, colors, bgParams, () => {
+      if (!shouldPaintStageImage(s.stageImage) || !s.stageImage.src) return;
+      const el = this.ensureStageImage(s.stageImage.src);
+      if (!el || !el.naturalWidth) return;
+      paintUserStageImage(ctx, w, h, el, s.stageImage);
+    });
 
     this.musicField.resize(w, h, hitY);
-    this.musicField.update(dt, bands, activeList, onset, s.musicReactive, colors);
-    this.musicField.draw(ctx, s.musicReactive);
+    if (fieldOn) {
+      this.musicField.update(dt, bands, activeList, onset, fx, colors);
+      this.musicField.draw(ctx, fx);
+    } else {
+      this.musicField.update(
+        dt,
+        bands,
+        activeList,
+        0,
+        { ...fx, enabled: false, intensity: 0 },
+        colors,
+      );
+    }
 
     const pulse = this.musicField.getPulse();
     const bass = this.musicField.getBassKick();
@@ -296,7 +353,7 @@ export class VisualizerEngine {
 
       const keyW = isBlackKey(pitch) ? whiteKeyWidth(w) * 0.55 : whiteKeyWidth(w) * 0.88;
       const xCenter = pitchToX(pitch, w);
-      const reactiveBoost = s.musicReactive.enabled
+      const reactiveBoost = fx.enabled
         ? 1 + pulse * 0.12 + (isActive ? bass * 0.08 : 0)
         : 1;
       // Keep notes mostly opaque so dark stage doesn't show through as a muddy gradient
@@ -379,14 +436,14 @@ export class VisualizerEngine {
       );
     }
 
-    if (s.particlesEnabled && particleParams.sustainEmit > 0 && activeKeys.size > 0) {
+    if (sparksOn && particleParams.sustainEmit > 0 && activeKeys.size > 0) {
       for (const [pitch, info] of activeKeys) {
         const x = pitchToX(pitch, w);
         this.particles.emitSustain(x, hitY, info.color, info.velocity, particleParams, dt);
       }
     }
 
-    if (s.particlesEnabled) {
+    if (sparksOn) {
       this.particles.update(dt, particleParams);
       this.particles.draw(ctx, particleParams);
     }

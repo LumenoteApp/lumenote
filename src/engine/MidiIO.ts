@@ -2,6 +2,11 @@
  * Web MIDI input / output manager.
  * Lazy: does not request access until enable() (user gesture friendly).
  */
+import {
+  loadMidiPrefs,
+  saveMidiPrefs,
+  type MidiPrefs,
+} from './midiPrefs';
 
 export type MidiPortInfo = {
   id: string;
@@ -50,6 +55,8 @@ export class MidiIO {
   private controlListeners = new Set<ControlListener>();
   private inputId: string | 'all' | null = null;
   private outputId: string | null = null;
+  /** User wants MIDI on across sessions (restore after permission). */
+  private enableIntent = false;
   /** When true, midimessage handlers are attached and fire note events */
   private inputEnabled = true;
   /** Echo live input to the selected MIDI out */
@@ -58,6 +65,10 @@ export class MidiIO {
   private outputPlayback = true;
   private error: string | null = null;
   private boundPorts = new Map<string, (e: MIDIMessageEvent) => void>();
+
+  constructor() {
+    this.applyPrefs(loadMidiPrefs(), false);
+  }
 
   subscribe(fn: Listener) {
     this.listeners.add(fn);
@@ -137,22 +148,26 @@ export class MidiIO {
   setInputEnabled(v: boolean) {
     this.inputEnabled = v;
     this.rewireInputs();
+    this.persist();
     this.emit();
   }
 
   setThru(v: boolean) {
     this.thru = v;
+    this.persist();
     this.emit();
   }
 
   setOutputPlayback(v: boolean) {
     this.outputPlayback = v;
+    this.persist();
     this.emit();
   }
 
   setInputId(id: string | 'all' | null) {
     this.inputId = id;
     this.rewireInputs();
+    this.persist();
     this.emit();
   }
 
@@ -162,7 +177,51 @@ export class MidiIO {
       this.allNotesOff();
     }
     this.outputId = id;
+    this.persist();
     this.emit();
+  }
+
+  getPrefs(): MidiPrefs {
+    return {
+      enableIntent: this.enableIntent,
+      inputId: this.inputId,
+      outputId: this.outputId,
+      thru: this.thru,
+      inputEnabled: this.inputEnabled,
+      outputPlayback: this.outputPlayback,
+    };
+  }
+
+  applyPrefs(prefs: MidiPrefs, persist = true) {
+    this.enableIntent = prefs.enableIntent;
+    this.inputId = prefs.inputId;
+    this.outputId = prefs.outputId;
+    this.thru = prefs.thru;
+    this.inputEnabled = prefs.inputEnabled;
+    this.outputPlayback = prefs.outputPlayback;
+    if (this.access) this.restorePorts();
+    if (persist) this.persist();
+    this.emit();
+  }
+
+  private persist() {
+    saveMidiPrefs(this.getPrefs());
+  }
+
+  private restorePorts() {
+    if (!this.access) return;
+    const saved = this.getPrefs();
+    if (saved.inputId && saved.inputId !== 'all') {
+      const found = [...this.access.inputs.values()].some((p) => p.id === saved.inputId);
+      if (found) this.inputId = saved.inputId;
+    } else if (saved.inputId === 'all') {
+      this.inputId = 'all';
+    }
+    if (saved.outputId) {
+      const found = [...this.access.outputs.values()].some((p) => p.id === saved.outputId);
+      if (found) this.outputId = saved.outputId;
+    }
+    this.rewireInputs();
   }
 
   /**
@@ -174,21 +233,30 @@ export class MidiIO {
       this.emit();
       return false;
     }
-    if (this.access) return true;
+    if (this.access) {
+      this.enableIntent = true;
+      this.persist();
+      this.restorePorts();
+      this.emit();
+      return true;
+    }
 
     try {
       this.access = await navigator.requestMIDIAccess({ sysex: false });
       this.error = null;
+      this.enableIntent = true;
       this.access.onstatechange = () => {
-        this.rewireInputs();
+        this.restorePorts();
         this.emit();
       };
+      this.restorePorts();
       // Prefer first input if none selected
       if (this.inputId === null) {
         const first = this.access.inputs.values().next().value as MIDIInput | undefined;
         this.inputId = first ? first.id : 'all';
       }
       this.rewireInputs();
+      this.persist();
       this.emit();
       return true;
     } catch (e) {
@@ -209,7 +277,9 @@ export class MidiIO {
       this.access.onstatechange = null;
     }
     this.access = null;
+    this.enableIntent = false;
     this.error = null;
+    this.persist();
     this.emit();
   }
 

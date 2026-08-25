@@ -2,11 +2,10 @@ import type {
   BackgroundParams,
   BackgroundStyle,
   HitRailStyleId,
-  MusicReactiveParams,
   NoteStyleParams,
-  ParticleParams,
   VisualSettings,
 } from '../midi/types';
+import { randomizeEffects } from './effects';
 import type { ColorMode, ColorSettings } from './colorPresets';
 import { COLOR_MODE_PRESETS, TRACK_PALETTE_PRESETS } from './colorPresets';
 import { HIT_RAIL_STYLE_PRESETS } from './hitRailPresets';
@@ -58,27 +57,7 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${to(r)}${to(g)}${to(b)}`;
 }
 
-export function randomizeParticles(): ParticleParams {
-  return {
-    density: snap(rand(0.35, 1.9)),
-    size: snap(rand(0.4, 1.9)),
-    sizeVariance: snap(rand(0.1, 0.95)),
-    speed: snap(rand(0.35, 1.95)),
-    spread: snap(rand(0.1, 1)),
-    gravity: snap(rand(-1.0, 1.5)),
-    drag: snap(rand(0.05, 0.75)),
-    lifetime: snap(rand(0.35, 1.9)),
-    turbulence: snap(rand(0.05, 1.1)),
-    sparkle: snap(rand(0.1, 1)),
-    bloom: snap(rand(0.5, 1.9)),
-    secondaryBurst: snap(rand(0.1, 1.15)),
-    trail: snap(rand(0.05, 0.95)),
-    whiteHot: snap(rand(0.15, 0.95)),
-    swirl: snap(rand(0, 1.1)),
-    sustainEmit: snap(rand(0.05, 1.15)),
-    hitFlash: snap(rand(0.15, 1.15)),
-  };
-}
+export { randomizeEffects };
 
 const BG_STYLES: BackgroundStyle[] = [
   'void',
@@ -107,17 +86,7 @@ export function randomizeBackground(): BackgroundParams {
   };
 }
 
-export function randomizeMusicReactive(): MusicReactiveParams {
-  return {
-    enabled: true,
-    intensity: snap(rand(0.55, 1.35)),
-    ambient: snap(rand(0.25, 1.25)),
-    columns: snap(rand(0.2, 1.35)),
-    waves: snap(rand(0.15, 1.3)),
-    bassPulse: snap(rand(0.15, 1.3)),
-    attack: snap(rand(0.35, 1.15)),
-  };
-}
+
 
 export type VisualCoreRandom = Pick<
   VisualSettings,
@@ -180,12 +149,9 @@ export function randomizeEverything(current: VisualSettings): VisualSettings {
     ...randomizeVisuals(),
     notes: randomizeNoteStyle(),
     noteStylePresetId: 'custom',
-    particlesEnabled: true,
-    particlePresetId: 'custom',
-    particles: randomizeParticles(),
+    effectsPresetId: 'custom',
+    effects: randomizeEffects(),
     background: randomizeBackground(),
-    musicReactivePresetId: 'custom',
-    musicReactive: randomizeMusicReactive(),
     colors: randomizeColors(),
   };
 }

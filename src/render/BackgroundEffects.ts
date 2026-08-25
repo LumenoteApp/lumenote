@@ -204,6 +204,7 @@ export class BackgroundEffects {
     baseColor: string,
     trackColors: string[],
     params: BackgroundParams,
+    afterBaseFill?: () => void,
   ) {
     if (!params.enabled) {
       const bg = ctx.createLinearGradient(0, 0, 0, h);
@@ -211,6 +212,7 @@ export class BackgroundEffects {
       bg.addColorStop(1, '#0a0c12');
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
+      afterBaseFill?.();
       return;
     }
 
@@ -235,6 +237,7 @@ export class BackgroundEffects {
     bg.addColorStop(1, '#05060a');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
+    afterBaseFill?.();
 
     // Style-specific layers
     if (style === 'nebula' || style === 'aurora' || style === 'pulse') {

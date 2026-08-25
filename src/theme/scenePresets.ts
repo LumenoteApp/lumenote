@@ -1,13 +1,15 @@
-import type { NoteStyleParams, VisualSettings } from '../midi/types';
+import type {
+  MusicReactiveParams,
+  NoteStyleParams,
+  ParticleParams,
+  VisualSettings,
+} from '../midi/types';
 import type { InstrumentId } from '../engine/instruments';
 import { DEFAULT_VISUAL_SETTINGS } from './defaultPalette';
 import { normalizeColorSettings } from './colorPresets';
-import {
-  normalizeHitRailEnergy,
-  normalizeHitRailStyle,
-} from './hitRailPresets';
 import { getNoteStylePreset, normalizeNoteStyle } from './notePresets';
 import { getPreset as getParticlePreset } from './particlePresets';
+import { cloneVisualSettings, hydrateVisualSettings } from './hydrateVisual';
 
 /** Shorthand: attach a factory note look (optionally tweaked) to a scene. */
 function noteLook(presetId: string, overrides?: Partial<NoteStyleParams>) {
@@ -68,14 +70,7 @@ export type ScenePreset = ScenePresetData & {
 };
 
 function cloneSettings(s: VisualSettings): VisualSettings {
-  return {
-    ...s,
-    notes: normalizeNoteStyle(s.notes),
-    particles: { ...s.particles },
-    background: { ...s.background },
-    musicReactive: { ...s.musicReactive },
-    colors: normalizeColorSettings(s.colors),
-  };
+  return cloneVisualSettings(s);
 }
 
 export function captureScene(
@@ -95,41 +90,26 @@ export function captureScene(
 export function hydrateSceneData(raw: Partial<ScenePresetData> | null | undefined): ScenePresetData {
   const base = captureScene(DEFAULT_VISUAL_SETTINGS, 'piano', 0.85);
   if (!raw) return base;
-  const s = raw.settings ?? base.settings;
   return {
     instrumentId: (raw.instrumentId as InstrumentId) || 'piano',
     volume: typeof raw.volume === 'number' ? raw.volume : 0.85,
-    settings: {
-      ...DEFAULT_VISUAL_SETTINGS,
-      ...s,
-      particles: {
-        ...DEFAULT_VISUAL_SETTINGS.particles,
-        ...(s.particles ?? {}),
-      },
-      background: {
-        ...DEFAULT_VISUAL_SETTINGS.background,
-        ...(s.background ?? {}),
-      },
-      musicReactive: {
-        ...DEFAULT_VISUAL_SETTINGS.musicReactive,
-        ...(s.musicReactive ?? {}),
-      },
-      notes: normalizeNoteStyle({
-        ...DEFAULT_VISUAL_SETTINGS.notes,
-        ...(s.notes ?? {}),
-      }),
-      noteStylePresetId:
-        typeof s.noteStylePresetId === 'string'
-          ? s.noteStylePresetId
-          : DEFAULT_VISUAL_SETTINGS.noteStylePresetId,
-      hitRailStyle: normalizeHitRailStyle(
-        s.hitRailStyle ?? DEFAULT_VISUAL_SETTINGS.hitRailStyle,
-      ),
-      hitRailEnergy: normalizeHitRailEnergy(
-        s.hitRailEnergy ?? DEFAULT_VISUAL_SETTINGS.hitRailEnergy,
-      ),
-      colors: normalizeColorSettings(s.colors ?? DEFAULT_VISUAL_SETTINGS.colors),
-    },
+    settings: hydrateVisualSettings(raw.settings ?? base.settings),
+  };
+}
+
+/**
+ * Studio load path: apply scene visuals only.
+ * Caller-supplied volume and instrument stay as they are.
+ */
+export function applySceneVisualsKeepingAudio(
+  raw: Partial<ScenePresetData> | null | undefined,
+  audio: { volume: number; instrumentId: InstrumentId },
+): { settings: VisualSettings; volume: number; instrumentId: InstrumentId } {
+  const data = hydrateSceneData(raw);
+  return {
+    settings: data.settings,
+    volume: audio.volume,
+    instrumentId: audio.instrumentId,
   };
 }
 
@@ -140,9 +120,12 @@ function makeBuiltIn(
   category: SceneCategoryId,
   partial: {
     settings?: Partial<VisualSettings> & {
-      particles?: Partial<VisualSettings['particles']>;
+      particles?: Partial<ParticleParams>;
+      particlesEnabled?: boolean;
+      particlePresetId?: string;
       background?: Partial<VisualSettings['background']>;
-      musicReactive?: Partial<VisualSettings['musicReactive']>;
+      musicReactive?: Partial<MusicReactiveParams>;
+      musicReactivePresetId?: string;
       colors?: Partial<VisualSettings['colors']>;
       notes?: Partial<VisualSettings['notes']>;
     };
@@ -152,6 +135,9 @@ function makeBuiltIn(
 ): ScenePreset {
   const base = captureScene(DEFAULT_VISUAL_SETTINGS, 'piano', 0.85);
   const ps = partial.settings ?? {};
+  const { effects: _fx, effectsPresetId: _fxId, ...baseRest } = base.settings;
+  void _fx;
+  void _fxId;
   return {
     id,
     name,
@@ -160,16 +146,19 @@ function makeBuiltIn(
     builtIn: true,
     instrumentId: partial.instrumentId ?? 'piano',
     volume: partial.volume ?? 0.85,
-    settings: {
-      ...base.settings,
+    settings: hydrateVisualSettings({
+      ...baseRest,
       ...ps,
-      particles: { ...base.settings.particles, ...(ps.particles ?? {}) },
+      particles: ps.particles,
+      particlesEnabled: ps.particlesEnabled,
+      particlePresetId: ps.particlePresetId,
+      musicReactive: ps.musicReactive,
+      musicReactivePresetId: ps.musicReactivePresetId,
       background: { ...base.settings.background, ...(ps.background ?? {}) },
-      musicReactive: { ...base.settings.musicReactive, ...(ps.musicReactive ?? {}) },
       notes: normalizeNoteStyle({ ...base.settings.notes, ...(ps.notes ?? {}) }),
       noteStylePresetId: ps.noteStylePresetId ?? base.settings.noteStylePresetId,
       colors: normalizeColorSettings({ ...base.settings.colors, ...(ps.colors ?? {}) }),
-    },
+    }),
   };
 }
 

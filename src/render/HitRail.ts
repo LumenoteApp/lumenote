@@ -74,6 +74,10 @@ export class HitRail {
 
     const e = Math.max(0, Math.min(1.4, energy));
     ctx.save();
+    // Keep every rail mark on/above the piano top, never over the keys
+    ctx.beginPath();
+    ctx.rect(0, 0, w, hitY + 0.75);
+    ctx.clip();
 
     // Base band (varies by style)
     this.drawBase(ctx, w, hitY, intensity, style, e);
@@ -82,7 +86,7 @@ export class HitRail {
 
     // Style-specific ambient FX along the rail
     if (style === 'electric' || style === 'storm') {
-      this.drawElectricCloud(ctx, w, hitY, intensity, e, style === 'storm');
+      this.drawElectricArcs(ctx, w, hitY, intensity, e);
     }
     if (style === 'wave' || style === 'aurora') {
       this.drawWaveBand(ctx, w, hitY, intensity, e, style === 'aurora', active);
@@ -118,40 +122,34 @@ export class HitRail {
     e: number,
   ) {
     const thick =
-      style === 'laser' ? 6 + e * 4 : style === 'storm' ? 18 + e * 10 : 14 + e * 6;
+      style === 'laser' ? 6 + e * 4 : style === 'storm' ? 14 + e * 8 : 10 + e * 5;
     const baseA =
       style === 'laser'
         ? (0.12 + this.pulse * 0.25) * intensity
         : (0.06 + this.pulse * 0.12) * intensity * (0.85 + e * 0.2);
 
-    const band = ctx.createLinearGradient(0, hitY - thick, 0, hitY + thick);
+    // Band sits on the piano lid, fading upward (not straddling into the keys)
+    const band = ctx.createLinearGradient(0, hitY - thick, 0, hitY);
     if (style === 'aurora') {
       band.addColorStop(0, 'rgba(120,200,255,0)');
-      band.addColorStop(0.4, `rgba(120,220,255,${baseA * 0.45})`);
-      band.addColorStop(0.5, `rgba(200,160,255,${baseA * 0.85})`);
-      band.addColorStop(0.6, `rgba(120,255,200,${baseA * 0.4})`);
-      band.addColorStop(1, 'rgba(255,255,255,0)');
+      band.addColorStop(0.55, `rgba(120,220,255,${baseA * 0.45})`);
+      band.addColorStop(0.85, `rgba(200,160,255,${baseA * 0.85})`);
+      band.addColorStop(1, `rgba(120,255,200,${baseA * 0.35})`);
     } else if (style === 'laser') {
       band.addColorStop(0, 'rgba(255,255,255,0)');
-      band.addColorStop(0.45, `rgba(180,220,255,${baseA * 0.5})`);
-      band.addColorStop(0.5, `rgba(255,255,255,${baseA * 1.4})`);
-      band.addColorStop(0.55, `rgba(180,220,255,${baseA * 0.5})`);
-      band.addColorStop(1, 'rgba(255,255,255,0)');
+      band.addColorStop(0.7, `rgba(180,220,255,${baseA * 0.5})`);
+      band.addColorStop(1, `rgba(255,255,255,${baseA * 1.4})`);
     } else if (style === 'storm' || style === 'electric') {
       band.addColorStop(0, 'rgba(140,180,255,0)');
-      band.addColorStop(0.4, `rgba(140,190,255,${baseA * 0.5})`);
-      band.addColorStop(0.5, `rgba(220,235,255,${baseA * 1.1})`);
-      band.addColorStop(0.6, `rgba(140,190,255,${baseA * 0.5})`);
-      band.addColorStop(1, 'rgba(255,255,255,0)');
+      band.addColorStop(0.65, `rgba(140,190,255,${baseA * 0.5})`);
+      band.addColorStop(1, `rgba(220,235,255,${baseA * 1.1})`);
     } else {
       band.addColorStop(0, 'rgba(255,255,255,0)');
-      band.addColorStop(0.45, `rgba(200,210,255,${baseA * 0.35})`);
-      band.addColorStop(0.5, `rgba(255,255,255,${baseA})`);
-      band.addColorStop(0.55, `rgba(200,210,255,${baseA * 0.35})`);
-      band.addColorStop(1, 'rgba(255,255,255,0)');
+      band.addColorStop(0.7, `rgba(200,210,255,${baseA * 0.4})`);
+      band.addColorStop(1, `rgba(255,255,255,${baseA})`);
     }
     ctx.fillStyle = band;
-    ctx.fillRect(0, hitY - thick, w, thick * 2);
+    ctx.fillRect(0, hitY - thick, w, thick);
 
     // Hairline core
     const coreA =
@@ -207,9 +205,9 @@ export class HitRail {
         const t = i / steps;
         const xx = t * w;
         const yy =
-          hitY +
-          Math.sin(t * Math.PI * (2 + p) + phase) * amp * (0.7 + p * 0.15) +
-          Math.sin(t * Math.PI * 5 - phase * 0.6) * amp * 0.25;
+          hitY -
+          Math.abs(Math.sin(t * Math.PI * (2 + p) + phase) * amp * (0.7 + p * 0.15)) -
+          Math.abs(Math.sin(t * Math.PI * 5 - phase * 0.6) * amp * 0.25);
         if (i === 0) ctx.moveTo(xx, yy);
         else ctx.lineTo(xx, yy);
       }
@@ -235,40 +233,18 @@ export class HitRail {
       g1.addColorStop(1, `rgba(${r},${g},${b},0)`);
       ctx.fillStyle = g1;
       ctx.beginPath();
-      ctx.ellipse(a.x, hitY, 28 + e * 16, 8 + e * 6, 0, 0, Math.PI * 2);
+      ctx.ellipse(a.x, hitY, 28 + e * 16, 5 + e * 3, 0, Math.PI, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  private drawElectricCloud(
+  private drawElectricArcs(
     ctx: CanvasRenderingContext2D,
     w: number,
     hitY: number,
     intensity: number,
     e: number,
-    storm: boolean,
   ) {
-    // Soft cloud puffs along the rail
-    const puffs = Math.round(6 + e * 10);
-    for (let i = 0; i < puffs; i++) {
-      const seed = hash01(i, Math.floor(this.time * 2), 3);
-      const drift = ((this.time * (12 + seed * 20) + i * 47) % (w + 80)) - 40;
-      const px = drift;
-      const py = hitY + (seed - 0.5) * (8 + e * 10);
-      const rw = 28 + seed * 40 * e;
-      const rh = 6 + seed * 10 * e;
-      const a = (0.06 + seed * 0.08) * intensity * (0.5 + e * 0.6) * (storm ? 1.15 : 1);
-      const g = ctx.createRadialGradient(px, py, 0, px, py, rw);
-      g.addColorStop(0, `rgba(200,220,255,${a})`);
-      g.addColorStop(0.5, `rgba(140,180,255,${a * 0.45})`);
-      g.addColorStop(1, 'rgba(100,140,255,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.ellipse(px, py, rw, rh, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Jagged lightning arcs
     const arcs = Math.round(2 + e * 5 + this.pulse * 4);
     for (let i = 0; i < arcs; i++) {
       const seed = hash01(i, Math.floor(this.time * 8), 9);
@@ -279,14 +255,14 @@ export class HitRail {
       const x0 = seed * w;
       const span = 40 + seed * 90 * e;
       const x1 = Math.min(w, x0 + span);
-      const y0 = hitY + (hash01(i, 2, 1) - 0.5) * 6;
+      const y0 = hitY - hash01(i, 2, 1) * 6;
       ctx.beginPath();
       ctx.moveTo(x0, y0);
       const segs = 5 + Math.floor(seed * 5);
       for (let s = 1; s <= segs; s++) {
         const t = s / segs;
         const jx = x0 + (x1 - x0) * t;
-        const jy = hitY + (hash01(i, s, Math.floor(this.time * 12)) - 0.5) * (10 + e * 14);
+        const jy = hitY - hash01(i, s, Math.floor(this.time * 12)) * (10 + e * 14);
         ctx.lineTo(jx, jy);
       }
       const a = (0.25 + flicker * 0.45) * intensity * e * (0.5 + this.pulse);
@@ -316,7 +292,8 @@ export class HitRail {
     grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.ellipse(a.x, hitY, hw, 10 + a.velocity * 8 + e * 3, 0, 0, Math.PI * 2);
+    // Flat flash along the lid, not a puff over the keys
+    ctx.ellipse(a.x, hitY, hw, 4 + a.velocity * 3 + e * 1.5, 0, Math.PI, Math.PI * 2);
     ctx.fill();
 
     if (style === 'electric' || style === 'storm') {
@@ -328,8 +305,8 @@ export class HitRail {
         const dir = i === 0 ? -1 : 1;
         ctx.beginPath();
         ctx.moveTo(a.x, hitY);
-        ctx.lineTo(a.x + dir * len * 0.4, hitY + (seed - 0.5) * 16);
-        ctx.lineTo(a.x + dir * len, hitY + (hash01(i, 3, 1) - 0.5) * 12);
+        ctx.lineTo(a.x + dir * len * 0.4, hitY - seed * 16);
+        ctx.lineTo(a.x + dir * len, hitY - hash01(i, 3, 1) * 12);
         ctx.strokeStyle = `rgba(${r},${g},${b},${0.35 * strength * e})`;
         ctx.lineWidth = 1;
         ctx.stroke();
@@ -350,28 +327,22 @@ export class HitRail {
     const hw = bloom.width * (0.6 + (1 - t) * 0.5);
 
     if (style === 'shock') {
-      // Expanding ring
       const radius = hw * (0.4 + (1 - t) * (1.2 + e));
       ctx.strokeStyle = `rgba(${bloom.r},${bloom.g},${bloom.b},${a * 0.75})`;
       ctx.lineWidth = 1.5 + e * 1.5 * t;
       ctx.beginPath();
-      ctx.ellipse(bloom.x, hitY, radius, 6 + (1 - t) * 10 * e, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.strokeStyle = `rgba(255,255,255,${a * 0.4})`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(bloom.x, hitY, radius * 0.75, 4 + (1 - t) * 6, 0, 0, Math.PI * 2);
+      ctx.ellipse(bloom.x, hitY, radius, 6 + (1 - t) * 10 * e, 0, Math.PI, Math.PI * 2);
       ctx.stroke();
     }
 
-    const grad = ctx.createRadialGradient(bloom.x, hitY, 0, bloom.x, hitY, hw);
-    grad.addColorStop(0, `rgba(255,255,255,${a * 0.85})`);
-    grad.addColorStop(0.3, `rgba(${bloom.r},${bloom.g},${bloom.b},${a * 0.65})`);
-    grad.addColorStop(1, `rgba(${bloom.r},${bloom.g},${bloom.b},0)`);
+    // Thin lid flash (no vertical cloud puff)
+    const flashH = 3 + (1 - t) * 5;
+    const grad = ctx.createLinearGradient(bloom.x, hitY - flashH, bloom.x, hitY);
+    grad.addColorStop(0, `rgba(${bloom.r},${bloom.g},${bloom.b},0)`);
+    grad.addColorStop(0.55, `rgba(${bloom.r},${bloom.g},${bloom.b},${a * 0.55})`);
+    grad.addColorStop(1, `rgba(255,255,255,${a * 0.85})`);
     ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.ellipse(bloom.x, hitY, hw, 12 + (1 - t) * 16, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(bloom.x - hw, hitY - flashH, hw * 2, flashH);
 
     if (style === 'spark' || style === 'electric') {
       const sparks = Math.round(3 + e * 5);
@@ -380,7 +351,7 @@ export class HitRail {
         const ang = seed * Math.PI * 2;
         const dist = (8 + seed * 28) * (1 - t) * (0.6 + e);
         const px = bloom.x + Math.cos(ang) * dist;
-        const py = hitY + Math.sin(ang) * dist * 0.35;
+        const py = hitY - Math.abs(Math.sin(ang)) * dist * 0.35;
         ctx.fillStyle = `rgba(255,255,255,${a * 0.6 * seed})`;
         ctx.beginPath();
         ctx.arc(px, py, 0.8 + seed * 1.6, 0, Math.PI * 2);
@@ -408,7 +379,7 @@ export class HitRail {
       } else {
         px = seed * w;
       }
-      const py = hitY + (hash01(i, 3, 2) - 0.5) * (10 + e * 14);
+      const py = hitY - hash01(i, 3, 2) * (10 + e * 14);
       const life = Math.abs(Math.sin(this.time * (8 + seed * 6) + i));
       const a = life * 0.35 * intensity * e;
       if (a < 0.04) continue;

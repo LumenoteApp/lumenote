@@ -9,18 +9,14 @@ import { CollapsiblePanel } from './CollapsiblePanel';
 type Props = {
   instrumentId: InstrumentId;
   sf2Name: string | null;
-  volume: number;
   onInstrumentChange: (id: InstrumentId) => void;
-  onVolumeChange: (v: number) => void;
   onSf2Loaded: (name: string) => void;
 };
 
 export function SoundPanel({
   instrumentId,
   sf2Name,
-  volume,
   onInstrumentChange,
-  onVolumeChange,
   onSf2Loaded,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -68,28 +64,7 @@ export function SoundPanel({
 
   return (
     <CollapsiblePanel id="audio-sound" title="Sound" className="sound-panel">
-      <p className="muted small">
-        Built-in synths, chip tones, GM, or load your own SF2/SF3.
-      </p>
-
-      <label className="field compact">
-        <span className="field-label">
-          Volume
-          <em>{Math.round(volume * 100)}%</em>
-        </span>
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={volume}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            playbackEngine.setVolume(v);
-            onVolumeChange(v);
-          }}
-        />
-      </label>
+      <p className="muted small">Synths, chip, GM, or a local SF2. Volume lives in the transport bar.</p>
 
       <div className="preset-grid sound-grid">
         {builtins.map((inst) => (

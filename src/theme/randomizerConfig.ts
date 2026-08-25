@@ -1,27 +1,17 @@
-import type {
-  BackgroundParams,
-  MusicReactiveParams,
-  ParticleParams,
-  VisualSettings,
-} from '../midi/types';
+import type { BackgroundParams, VisualSettings } from '../midi/types';
 import type { ColorSettings } from './colorPresets';
 import { normalizeColorSettings } from './colorPresets';
+import { EFFECT_PARAM_KEYS } from './effects';
 import {
   pick,
   randomizeBackground,
   randomizeColors,
-  randomizeMusicReactive,
+  randomizeEffects,
   randomizeNoteStyle,
-  randomizeParticles,
   randomizeVisuals,
 } from './randomize';
 
-export type RandomCategory =
-  | 'visuals'
-  | 'colors'
-  | 'music'
-  | 'background'
-  | 'particles';
+export type RandomCategory = 'visuals' | 'colors' | 'effects' | 'background';
 
 export const RANDOM_CATEGORIES: {
   id: RandomCategory;
@@ -30,9 +20,8 @@ export const RANDOM_CATEGORIES: {
 }[] = [
   { id: 'visuals', label: 'Visuals', blurb: 'Glow, scroll, rail' },
   { id: 'colors', label: 'Colors', blurb: 'Palette & RGB modes' },
-  { id: 'music', label: 'Music FX', blurb: 'Reactive field' },
+  { id: 'effects', label: 'Effects', blurb: 'Sparks, dust, pulse' },
   { id: 'background', label: 'Background', blurb: 'Atmosphere' },
-  { id: 'particles', label: 'Particles', blurb: 'Hit sparks' },
 ];
 
 export type CategoryFlags = Record<RandomCategory, boolean>;
@@ -50,9 +39,8 @@ export const DEFAULT_RANDOMIZER_CONFIG: RandomizerConfig = {
   categories: {
     visuals: true,
     colors: true,
-    music: true,
+    effects: true,
     background: true,
-    particles: true,
   },
   partyMode: false,
   danceSpeed: 0.75,
@@ -77,23 +65,15 @@ export function randomizeSelected(
       noteStylePresetId: 'custom',
     };
   }
-  if (cats.particles) {
+  if (cats.effects) {
     next = {
       ...next,
-      particlesEnabled: true,
-      particlePresetId: 'custom',
-      particles: randomizeParticles(),
+      effectsPresetId: 'custom',
+      effects: randomizeEffects(),
     };
   }
   if (cats.background) {
     next = { ...next, background: randomizeBackground() };
-  }
-  if (cats.music) {
-    next = {
-      ...next,
-      musicReactivePresetId: 'custom',
-      musicReactive: randomizeMusicReactive(),
-    };
   }
   if (cats.colors) {
     next = { ...next, colors: randomizeColors() };
@@ -111,7 +91,6 @@ export function randomizeContinuousTargets(
   if (cats.visuals) {
     const v = randomizeVisuals();
     const n = randomizeNoteStyle();
-    // Keep booleans stable while dancing - only slide numbers
     next = {
       ...next,
       pixelsPerSecond: v.pixelsPerSecond,
@@ -126,17 +105,15 @@ export function randomizeContinuousTargets(
         shine: n.shine,
         innerFx: n.innerFx,
         roundness: n.roundness,
-        // style flips via discrete party path
       },
     };
   }
 
-  if (cats.particles) {
+  if (cats.effects) {
     next = {
       ...next,
-      particlesEnabled: true,
-      particlePresetId: 'custom',
-      particles: randomizeParticles(),
+      effectsPresetId: 'custom',
+      effects: randomizeEffects(),
     };
   }
 
@@ -147,7 +124,6 @@ export function randomizeContinuousTargets(
       background: {
         ...current.background,
         enabled: true,
-        // keep style until discrete flip
         style: current.background.style,
         intensity: bg.intensity,
         parallax: bg.parallax,
@@ -160,25 +136,12 @@ export function randomizeContinuousTargets(
     };
   }
 
-  if (cats.music) {
-    const m = randomizeMusicReactive();
-    next = {
-      ...next,
-      musicReactivePresetId: 'custom',
-      musicReactive: {
-        ...m,
-        enabled: true,
-      },
-    };
-  }
-
   if (cats.colors) {
     const c = randomizeColors();
     next = {
       ...next,
       colors: {
         ...normalizeColorSettings(current.colors),
-        // keep mode/palette for continuous dance
         mode: current.colors.mode,
         paletteId: current.colors.paletteId,
         cycleSpeed: c.cycleSpeed,
@@ -201,7 +164,6 @@ export function randomizeDiscreteFlip(
 
   if (cats.colors) {
     const c = randomizeColors();
-    // Sometimes only palette, sometimes mode, sometimes both
     const roll = Math.random();
     if (roll < 0.4) {
       next = {
@@ -277,35 +239,6 @@ function lerpObj<T extends Record<string, unknown>>(
   return out;
 }
 
-const PARTICLE_KEYS: (keyof ParticleParams)[] = [
-  'density',
-  'size',
-  'sizeVariance',
-  'speed',
-  'spread',
-  'gravity',
-  'drag',
-  'lifetime',
-  'turbulence',
-  'sparkle',
-  'bloom',
-  'secondaryBurst',
-  'trail',
-  'whiteHot',
-  'swirl',
-  'sustainEmit',
-  'hitFlash',
-];
-
-const MUSIC_KEYS: (keyof MusicReactiveParams)[] = [
-  'intensity',
-  'ambient',
-  'columns',
-  'waves',
-  'bassPulse',
-  'attack',
-];
-
 const BG_NUM_KEYS: (keyof BackgroundParams)[] = [
   'intensity',
   'parallax',
@@ -334,7 +267,6 @@ export function lerpSettings(
   cats: CategoryFlags,
 ): VisualSettings {
   const k = Math.max(0, Math.min(1, t));
-  // Ease for dancing feel
   const e = k * k * (3 - 2 * k);
   let out: VisualSettings = { ...from };
 
@@ -348,9 +280,10 @@ export function lerpSettings(
       hitRailIntensity: lerp(from.hitRailIntensity, to.hitRailIntensity, e),
       hitRailEnergy: lerp(from.hitRailEnergy ?? 0.55, to.hitRailEnergy ?? 0.55, e),
       hitRailStyle: k > 0.85 ? (to.hitRailStyle ?? from.hitRailStyle) : from.hitRailStyle,
-      backgroundColor: to.backgroundColor !== from.backgroundColor && k > 0.92
-        ? to.backgroundColor
-        : from.backgroundColor,
+      backgroundColor:
+        to.backgroundColor !== from.backgroundColor && k > 0.92
+          ? to.backgroundColor
+          : from.backgroundColor,
       notes: {
         style: to.notes?.style ?? from.notes?.style ?? 'solid',
         border: lerp(from.notes?.border ?? 0.25, to.notes?.border ?? 0.25, e),
@@ -362,12 +295,14 @@ export function lerpSettings(
     };
   }
 
-  if (cats.particles) {
+  if (cats.effects) {
     out = {
       ...out,
-      particlesEnabled: true,
-      particlePresetId: 'custom',
-      particles: lerpObj(from.particles, to.particles, e, PARTICLE_KEYS),
+      effectsPresetId: 'custom',
+      effects: {
+        ...lerpObj(from.effects, to.effects, e, EFFECT_PARAM_KEYS),
+        enabled: true,
+      },
     };
   }
 
@@ -377,18 +312,7 @@ export function lerpSettings(
       background: {
         ...lerpObj(from.background, to.background, e, BG_NUM_KEYS),
         enabled: true,
-        style: to.background.style, // discrete - already set on target flip
-      },
-    };
-  }
-
-  if (cats.music) {
-    out = {
-      ...out,
-      musicReactivePresetId: 'custom',
-      musicReactive: {
-        ...lerpObj(from.musicReactive, to.musicReactive, e, MUSIC_KEYS),
-        enabled: true,
+        style: to.background.style,
       },
     };
   }
@@ -424,14 +348,10 @@ export function distanceRough(a: VisualSettings, b: VisualSettings, cats: Catego
     add(a.glowStrength, b.glowStrength);
     add(a.noteOpacity, b.noteOpacity);
   }
-  if (cats.particles) {
-    add(a.particles.density, b.particles.density);
-    add(a.particles.speed, b.particles.speed);
-    add(a.particles.bloom, b.particles.bloom);
-  }
-  if (cats.music) {
-    add(a.musicReactive.intensity, b.musicReactive.intensity);
-    add(a.musicReactive.waves, b.musicReactive.waves);
+  if (cats.effects) {
+    add(a.effects.intensity, b.effects.intensity);
+    add(a.effects.sparks, b.effects.sparks);
+    add(a.effects.bassPulse, b.effects.bassPulse);
   }
   if (cats.background) {
     add(a.background.intensity, b.background.intensity);
@@ -445,7 +365,6 @@ export function distanceRough(a: VisualSettings, b: VisualSettings, cats: Catego
 }
 
 export function pickDanceHoldSeconds(speed: number): number {
-  // Faster dance → shorter holds between new targets
   const base = 3.5 / Math.max(0.25, speed);
   return base * (0.65 + Math.random() * 0.7);
 }
@@ -455,5 +374,4 @@ export function pickColorFlipSeconds(rate: number): number {
   return base * (0.7 + Math.random() * 0.8);
 }
 
-// silence unused pick if tree-shaken oddly
 void pick;

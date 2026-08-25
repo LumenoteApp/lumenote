@@ -60,7 +60,7 @@ export function TrackPanel({ tracks, colors: colorsProp, onTracksChange, onColor
     <CollapsiblePanel
       id="look-colors"
       title="Colors"
-      actions={<RandomizeButton onClick={randomize} label="Randomize" />}
+      actions={<RandomizeButton onClick={randomize} label="Random" subtle />}
     >
       <p className="muted small">Note color mode</p>
       <div className="preset-grid">

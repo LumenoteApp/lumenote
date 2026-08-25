@@ -1,9 +1,9 @@
 /**
- * Music-reactive ambient particle animation.
- * Floats, pulses, rises from active keys, and pops shockwaves on onsets.
+ * Music-reactive ambient field: dust, rising streams, bass pulse.
+ * Combined with hit sparks in VisualizerEngine (single effects budget).
  */
 
-import type { MusicReactiveParams } from '../midi/types';
+import type { EffectsParams } from '../midi/types';
 
 export type MusicBandEnergy = {
   /** 0-1 overall activity */
@@ -47,19 +47,6 @@ type Streamer = {
   active: boolean;
 };
 
-type Wave = {
-  x: number;
-  y: number;
-  radius: number;
-  maxRadius: number;
-  life: number;
-  maxLife: number;
-  r: number;
-  g: number;
-  b: number;
-  strength: number;
-};
-
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace('#', '');
   const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
@@ -71,14 +58,9 @@ function clamp01(v: number) {
   return Math.max(0, Math.min(1, v));
 }
 
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t;
-}
-
 export class MusicReactiveField {
   private dust: Dust[] = [];
   private streamers: Streamer[] = [];
-  private waves: Wave[] = [];
   private w = 0;
   private h = 0;
   private hitY = 0;
@@ -93,8 +75,8 @@ export class MusicReactiveField {
   private bassKick = 0;
 
   constructor() {
-    for (let i = 0; i < 900; i++) this.dust.push(this.blankDust());
-    for (let i = 0; i < 1200; i++) this.streamers.push(this.blankStreamer());
+    for (let i = 0; i < 280; i++) this.dust.push(this.blankDust());
+    for (let i = 0; i < 360; i++) this.streamers.push(this.blankStreamer());
   }
 
   private blankDust(): Dust {
@@ -157,7 +139,7 @@ export class MusicReactiveField {
     bands: MusicBandEnergy,
     active: { x: number; color: string; velocity: number; pitch: number }[],
     onsetStrength: number,
-    params: MusicReactiveParams,
+    params: EffectsParams,
     palette: string[],
   ) {
     if (!params.enabled || params.intensity <= 0.01) {
@@ -222,10 +204,10 @@ export class MusicReactiveField {
     }
 
     // --- Rising columns from each active key ---
-    if (params.columns > 0.02 && active.length > 0) {
+    if (params.streams > 0.02 && active.length > 0) {
       for (const note of active) {
         const rate =
-          params.columns *
+          params.streams *
           I *
           (6 + note.velocity * 18 + e * 12) *
           dt *
@@ -248,55 +230,13 @@ export class MusicReactiveField {
           }
           s.life = 0.35 + Math.random() * 0.7 * (0.7 + note.velocity);
           s.maxLife = s.life;
-          s.size = (1.2 + Math.random() * 3 * note.velocity) * (isBass ? 1.6 : 1) * params.columns;
+          s.size = (1.2 + Math.random() * 3 * note.velocity) * (isBass ? 1.6 : 1) * params.streams;
           s.r = col.r;
           s.g = col.g;
           s.b = col.b;
           s.active = true;
         }
       }
-    }
-
-    // --- Shockwave rings on onsets ---
-    if (params.waves > 0.02 && onset > 0.12) {
-      // Prefer wave centers at loudest active notes; else screen center
-      const centers =
-        active.length > 0
-          ? active.slice(0, Math.min(4, Math.ceil(onset * 5)))
-          : [{ x: this.w / 2, color: defaultColors[0], velocity: onset, pitch: 60 }];
-
-      for (const c of centers) {
-        const col = hexToRgb(c.color);
-        this.waves.push({
-          x: c.x,
-          y: this.hitY,
-          radius: 4,
-          maxRadius: 80 + onset * 220 * params.waves + this.bassSmooth * 100,
-          life: 0.5 + onset * 0.45,
-          maxLife: 0.5 + onset * 0.45,
-          r: col.r,
-          g: col.g,
-          b: col.b,
-          strength: onset * params.waves * I * (0.5 + c.velocity),
-        });
-      }
-      // Full-width bass boom wave
-      if (this.bassSmooth > 0.35 && onset > 0.2 && params.bassPulse > 0.2) {
-        const col = hexToRgb(defaultColors[0]);
-        this.waves.push({
-          x: this.w / 2,
-          y: this.hitY,
-          radius: 10,
-          maxRadius: this.w * 0.55,
-          life: 0.55,
-          maxLife: 0.55,
-          r: col.r,
-          g: col.g,
-          b: col.b,
-          strength: onset * params.bassPulse * I * 0.7,
-        });
-      }
-      if (this.waves.length > 40) this.waves.splice(0, this.waves.length - 40);
     }
 
     // Integrate dust
@@ -335,14 +275,6 @@ export class MusicReactiveField {
       if (s.y < -30 || s.x < -30 || s.x > this.w + 30) s.active = false;
     }
 
-    // Integrate waves
-    for (let i = this.waves.length - 1; i >= 0; i--) {
-      const w = this.waves[i];
-      w.life -= dt;
-      const t = 1 - w.life / w.maxLife;
-      w.radius = lerp(4, w.maxRadius, 1 - Math.pow(1 - t, 1.4));
-      if (w.life <= 0) this.waves.splice(i, 1);
-    }
   }
 
   /** 0-1 value for other systems (bg, rail) to piggyback on */
@@ -358,7 +290,7 @@ export class MusicReactiveField {
     return this.pulse;
   }
 
-  draw(ctx: CanvasRenderingContext2D, params: MusicReactiveParams) {
+  draw(ctx: CanvasRenderingContext2D, params: EffectsParams) {
     if (!params.enabled || params.intensity <= 0.01) return;
     const I = params.intensity;
 
@@ -383,26 +315,6 @@ export class MusicReactiveField {
       ctx.fillRect(0, 0, this.w, this.h);
     }
 
-    // Shockwaves
-    for (const w of this.waves) {
-      const t = w.life / w.maxLife;
-      const a = t * w.strength * 0.7;
-      ctx.strokeStyle = `rgba(${w.r},${w.g},${w.b},${a})`;
-      ctx.lineWidth = 1.5 + t * 3;
-      ctx.beginPath();
-      ctx.arc(w.x, w.y, w.radius, Math.PI, Math.PI * 2, true); // upper semicircle
-      ctx.stroke();
-      // soft fill ring
-      const rg = ctx.createRadialGradient(w.x, w.y, w.radius * 0.85, w.x, w.y, w.radius * 1.15);
-      rg.addColorStop(0, `rgba(${w.r},${w.g},${w.b},0)`);
-      rg.addColorStop(0.5, `rgba(${w.r},${w.g},${w.b},${a * 0.35})`);
-      rg.addColorStop(1, `rgba(${w.r},${w.g},${w.b},0)`);
-      ctx.fillStyle = rg;
-      ctx.beginPath();
-      ctx.arc(w.x, w.y, w.radius * 1.15, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
     // Ambient dust
     for (const d of this.dust) {
       if (!d.active) continue;
@@ -425,7 +337,7 @@ export class MusicReactiveField {
     for (const s of this.streamers) {
       if (!s.active) continue;
       const t = s.life / s.maxLife;
-      const a = t * t * I * 0.85 * params.columns;
+      const a = t * t * I * 0.85 * params.streams;
       if (a < 0.02) continue;
       const size = s.size * (0.4 + t);
       // trail
@@ -452,7 +364,6 @@ export class MusicReactiveField {
   clear() {
     for (const d of this.dust) d.active = false;
     for (const s of this.streamers) s.active = false;
-    this.waves = [];
     this.energySmooth = 0;
     this.pulse = 0;
     this.bassKick = 0;

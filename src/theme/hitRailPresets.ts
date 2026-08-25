@@ -10,12 +10,12 @@ export type HitRailStylePreset = {
 
 export const HIT_RAIL_STYLE_PRESETS: HitRailStylePreset[] = [
   { id: 'soft', name: 'Soft', blurb: 'Classic bloom rail', energy: 0.45 },
-  { id: 'electric', name: 'Electric', blurb: 'Jagged arcs + cloud', energy: 0.95 },
+  { id: 'electric', name: 'Electric', blurb: 'Jagged arcs on the lid', energy: 0.95 },
   { id: 'wave', name: 'Wave', blurb: 'Traveling sine crest', energy: 0.75 },
   { id: 'shock', name: 'Shock', blurb: 'Expanding hit rings', energy: 0.9 },
   { id: 'spark', name: 'Spark', blurb: 'Hot spark scatter', energy: 0.85 },
   { id: 'laser', name: 'Laser', blurb: 'Hard neon core', energy: 0.55 },
-  { id: 'storm', name: 'Storm', blurb: 'Thunder cloud bank', energy: 1.05 },
+  { id: 'storm', name: 'Storm', blurb: 'Thunder arcs on the lid', energy: 1.05 },
   { id: 'aurora', name: 'Aurora', blurb: 'Soft color curtains', energy: 0.8 },
 ];
 

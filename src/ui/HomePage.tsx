@@ -28,7 +28,7 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
       title: 'Scene lookbooks',
       stat: String(stats.scenes),
       unit: 'full scenes',
-      body: `${stats.sceneCategories} moods. One click swaps note style, particles, background, colors, and instrument.`,
+      body: `${stats.sceneCategories} moods. One click swaps note style, effects, background, and colors. Volume and instrument stay global.`,
       wide: true,
     },
     {
@@ -53,17 +53,10 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
       wide: false,
     },
     {
-      title: 'Particles',
+      title: 'Effects',
       stat: String(stats.particles),
-      unit: 'presets',
-      body: 'Ember, neon, stardust, firework, plasma, aurora, rain, blizzard, soft, inferno, crystal.',
-      wide: false,
-    },
-    {
-      title: 'Music field',
-      stat: String(stats.musicReactive),
-      unit: 'modes',
-      body: 'Ambient dust, rising columns, bass shockwaves, attack pops locked to pitch bands.',
+      unit: 'looks',
+      body: 'Hit sparks, ambient dust, rising streams, and bass pulse as one mix. Named presets plus a few knobs.',
       wide: false,
     },
     {
@@ -109,7 +102,7 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
               actually move
             </h1>
             <p className="home-lead">
-              Multi-track MIDI, styled falling notes, living particles, and smooth{' '}
+              Multi-track MIDI, styled falling notes, one combined effects mix, and smooth{' '}
               {stats.exportMaxLabel} bake export. No account. No watermark.
             </p>
             <div className="home-ctas">
@@ -166,7 +159,7 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
             </div>
             <div className="home-panel-row">
               <span className="home-panel-num">{stats.particles}</span>
-              <span className="home-panel-label">particle looks</span>
+              <span className="home-panel-label">effect looks</span>
             </div>
             <div className="home-panel-row">
               <span className="home-panel-num">{stats.exportMaxLabel}</span>
@@ -220,8 +213,9 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
               {stats.scenes} looks across {stats.sceneCategories} moods
             </h2>
             <p>
-              Full snapshots: visuals, particles, colors, FX, and sound. Browse by category in
-              the studio so the library never becomes a wall of chips.
+              Visual snapshots: notes, effects, colors, and atmosphere. Volume and instrument
+              stay where you set them. Browse by category so the library never becomes a wall of
+              chips.
             </p>
           </div>
           <ul className="home-mood-list">
@@ -256,7 +250,7 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
               locally, or use the built-in synths. Fullscreen stage with an overlay studio panel.
             </p>
             <ul className="home-lines">
-              <li>Hardware keys hit the same particle rail</li>
+              <li>Hardware keys hit the same sparks and rail</li>
               <li>Custom soundfonts stay on your device</li>
               <li>Chrome or Edge recommended for bake and MIDI</li>
             </ul>
@@ -273,7 +267,7 @@ export function HomePage({ onEnter, onOpenMidi }: Props) {
             </li>
             <li>
               <span className="home-process-k">Style</span>
-              <span className="home-process-v">Scenes, colors, particles, Party mode</span>
+              <span className="home-process-v">Scenes, colors, effects, Party mode</span>
             </li>
             <li>
               <span className="home-process-k">Export</span>

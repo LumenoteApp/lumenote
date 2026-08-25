@@ -39,9 +39,14 @@ import { ScenePresetPanel } from './ui/ScenePresetPanel';
 import { ExportPanel } from './ui/ExportPanel';
 import type { InstrumentId } from './engine/instruments';
 import type { ScenePreset } from './theme/scenePresets';
-import { hydrateSceneData } from './theme/scenePresets';
+import { applySceneVisualsKeepingAudio } from './theme/scenePresets';
+import { cloneVisualSettings, hydrateVisualSettings } from './theme/hydrateVisual';
 import { computerPiano } from './engine/ComputerPiano';
 import { midiIO } from './engine/MidiIO';
+import { loadAudioPrefs, restoreAudioToEngine, saveAudioPrefs } from './engine/audioPrefs';
+import { loadMidiPrefs } from './engine/midiPrefs';
+import { VolumeControl } from './ui/VolumeControl';
+import { MidiDock } from './ui/MidiDock';
 import {
   DEFAULT_EXPORT_SETTINGS,
   VideoExporter,
@@ -65,14 +70,7 @@ function formatTime(sec: number) {
 }
 
 function cloneSettings(s: VisualSettings): VisualSettings {
-  return {
-    ...s,
-    notes: { ...s.notes },
-    particles: { ...s.particles },
-    background: { ...s.background },
-    musicReactive: { ...s.musicReactive },
-    colors: normalizeColorSettings(s.colors),
-  };
+  return cloneVisualSettings(s);
 }
 
 type AppScreen = 'home' | 'app';
@@ -101,14 +99,9 @@ export default function App() {
   const [tempoScale, setTempoScale] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [settings, setSettings] = useState<VisualSettings>(() => ({
-    ...DEFAULT_VISUAL_SETTINGS,
-    notes: { ...DEFAULT_VISUAL_SETTINGS.notes },
-    musicReactive: { ...DEFAULT_VISUAL_SETTINGS.musicReactive },
-    colors: normalizeColorSettings(DEFAULT_VISUAL_SETTINGS.colors),
-    particles: { ...DEFAULT_VISUAL_SETTINGS.particles },
-    background: { ...DEFAULT_VISUAL_SETTINGS.background },
-  }));
+  const [settings, setSettings] = useState<VisualSettings>(() =>
+    hydrateVisualSettings(DEFAULT_VISUAL_SETTINGS),
+  );
   const [randomizer, setRandomizer] = useState<RandomizerConfig>({
     ...DEFAULT_RANDOMIZER_CONFIG,
     categories: { ...DEFAULT_RANDOMIZER_CONFIG.categories },
@@ -117,15 +110,27 @@ export default function App() {
   const [playerOnly, setPlayerOnly] = useState(false);
   /** Overlay studio panel while in player fullscreen (does not shrink the stage) */
   const [fsSidebarOpen, setFsSidebarOpen] = useState(false);
+  /** In-studio fold (not fullscreen). Remembered across reloads. */
+  const [studioSidebarOpen, setStudioSidebarOpen] = useState(() => {
+    try {
+      const raw = localStorage.getItem('lumenote-studio-sidebar-open-v1');
+      if (raw === null) return true;
+      return raw !== '0';
+    } catch {
+      return true;
+    }
+  });
   const [chromeVisible, setChromeVisible] = useState(true);
   const hideChromeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Landing (/) vs studio (/player) - synced with the URL */
   const [screen, setScreen] = useState<AppScreen>(() =>
     typeof window !== 'undefined' ? screenFromPath(window.location.pathname) : 'home',
   );
-  const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
+  const [instrumentId, setInstrumentId] = useState<InstrumentId>(
+    () => loadAudioPrefs().instrumentId,
+  );
   const [sf2Name, setSf2Name] = useState<string | null>(null);
-  const [volume, setVolume] = useState(0.85);
+  const [volume, setVolume] = useState(() => loadAudioPrefs().volume);
   const [activeScenePresetId, setActiveScenePresetId] = useState<string | null>(null);
   /** One studio section at a time so the sidebar stays short */
   const [sidebarTab, setSidebarTab] = useState<'scene' | 'audio' | 'look' | 'export'>('scene');
@@ -218,6 +223,31 @@ export default function App() {
   useEffect(() => {
     computerPiano.attach();
     return () => computerPiano.detach();
+  }, []);
+
+  // Restore global volume + last instrument (not SF2 binary).
+  // Must use audio.setInstrument so Tone is not started without a gesture.
+  useEffect(() => {
+    void restoreAudioToEngine(playbackEngine, { instrumentId, volume });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    saveAudioPrefs({
+      instrumentId: instrumentId === 'sf2' ? 'piano' : instrumentId,
+      volume,
+    });
+  }, [instrumentId, volume]);
+
+  const onVolumeChange = useCallback((v: number) => {
+    setVolume(v);
+    playbackEngine.setVolume(v);
+  }, []);
+
+  // Remembered MIDI enable intent + ports (access may still need a gesture)
+  useEffect(() => {
+    if (!loadMidiPrefs().enableIntent) return;
+    void midiIO.enable();
   }, []);
 
   useEffect(() => {
@@ -353,6 +383,22 @@ export default function App() {
       }
     }
   }, []);
+
+  const sidebarOpen = playerOnly ? fsSidebarOpen : studioSidebarOpen;
+  const toggleSidebar = useCallback(() => {
+    if (playerOnly) setFsSidebarOpen((o) => !o);
+    else {
+      setStudioSidebarOpen((o) => {
+        const next = !o;
+        try {
+          localStorage.setItem('lumenote-studio-sidebar-open-v1', next ? '1' : '0');
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+    }
+  }, [playerOnly]);
 
   const enterPlayerOnly = useCallback(async () => {
     setPlayerOnly(true);
@@ -541,9 +587,9 @@ export default function App() {
       } else if (e.code === 'KeyP' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         setRandomizer((c) => ({ ...c, partyMode: !c.partyMode }));
-      } else if (e.code === 'KeyB' && playerOnly) {
+      } else if (e.code === 'KeyB') {
         e.preventDefault();
-        setFsSidebarOpen((o) => !o);
+        toggleSidebar();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -556,6 +602,7 @@ export default function App() {
     exitPlayerOnly,
     playerOnly,
     fsSidebarOpen,
+    toggleSidebar,
   ]);
 
   const onDrop = (e: React.DragEvent) => {
@@ -869,30 +916,18 @@ export default function App() {
 
   const loadScenePreset = useCallback(
     async (preset: ScenePreset) => {
-      const data = hydrateSceneData(preset);
+      const { settings: next } = applySceneVisualsKeepingAudio(preset, {
+        volume,
+        instrumentId,
+      });
       // Stop party so it doesn't overwrite the loaded look
       setRandomizer((r) => ({ ...r, partyMode: false }));
-      applySettings(data.settings, settingsRef.current.colors.paletteId);
-      setVolume(data.volume);
-      playbackEngine.setVolume(data.volume);
-      try {
-        if (data.instrumentId === 'sf2' && !playbackEngine.audio.hasSf2()) {
-          // Fall back until user reloads the soundfont
-          await playbackEngine.setInstrument('piano');
-          setInstrumentId('piano');
-        } else {
-          await playbackEngine.setInstrument(data.instrumentId);
-          setInstrumentId(data.instrumentId);
-        }
-      } catch {
-        await playbackEngine.setInstrument('piano');
-        setInstrumentId('piano');
-      }
+      applySettings(next, settingsRef.current.colors.paletteId);
       // Apply palette colors to tracks
       if (tracksRef.current.length > 0) {
         const colored = applyPaletteToTracks(
           tracksRef.current,
-          data.settings.colors.paletteId,
+          next.colors.paletteId,
         );
         setTracks(colored);
         playbackEngine.updateTracks(colored);
@@ -900,7 +935,7 @@ export default function App() {
       }
       setActiveScenePresetId(preset.id);
     },
-    [applySettings],
+    [applySettings, volume, instrumentId],
   );
 
   if (screen === 'home') {
@@ -943,6 +978,10 @@ export default function App() {
           onBpmDelta={onBpmDelta}
           onBpmSet={onBpmSet}
           onBpmReset={onBpmReset}
+          volume={volume}
+          onVolumeChange={onVolumeChange}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={toggleSidebar}
         />
       )}
 
@@ -961,7 +1000,7 @@ export default function App() {
       <div className={`main ${playerOnly ? 'main-player-only' : ''}`}>
         <div
           ref={playerRef}
-          className={`stage ${playerOnly ? 'stage-player-only' : ''} ${playerOnly && fsSidebarOpen ? 'sidebar-open' : ''}`}
+          className={`stage ${playerOnly ? 'stage-player-only' : ''} ${sidebarOpen ? 'sidebar-open' : 'sidebar-folded'}`}
           onMouseMove={bumpChrome}
           onClick={bumpChrome}
         >
@@ -996,7 +1035,7 @@ export default function App() {
 
             {playerOnly && (
               <div
-                className={`player-chrome ${chromeVisible || fsSidebarOpen ? 'visible' : 'hidden'}`}
+                className={`player-chrome ${chromeVisible || sidebarOpen ? 'visible' : 'hidden'}`}
                 onMouseMove={bumpChrome}
               >
                 <div className="player-chrome-bar">
@@ -1042,6 +1081,8 @@ export default function App() {
                     )}
                   </div>
                   <div className="player-chrome-right">
+                    <VolumeControl volume={volume} onChange={onVolumeChange} compact />
+                    <MidiDock />
                     <button
                       type="button"
                       className={`btn compact-btn ${randomizer.partyMode ? 'party-on' : ''}`}
@@ -1054,14 +1095,14 @@ export default function App() {
                     </button>
                     <button
                       type="button"
-                      className={`btn compact-btn ${fsSidebarOpen ? 'primary' : ''}`}
+                      className={`btn compact-btn ${sidebarOpen ? 'primary' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setFsSidebarOpen((o) => !o);
+                        toggleSidebar();
                       }}
                       title="Studio panel (B)"
                     >
-                      {fsSidebarOpen ? 'Panel ›' : '‹ Panel'}
+                      {sidebarOpen ? 'Panel ›' : '‹ Panel'}
                     </button>
                     <button
                       type="button"
@@ -1101,26 +1142,24 @@ export default function App() {
             )}
           </div>
 
-          {playerOnly && (
-            <button
-              type="button"
-              className={`sidebar-edge-toggle ${fsSidebarOpen ? 'open' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setFsSidebarOpen((o) => !o);
-              }}
-              title={fsSidebarOpen ? 'Hide studio panel (B)' : 'Show studio panel (B)'}
-              aria-label={fsSidebarOpen ? 'Hide studio panel' : 'Show studio panel'}
-              aria-expanded={fsSidebarOpen}
-            >
-              <span className="sidebar-edge-chevron" aria-hidden>
-                {fsSidebarOpen ? '›' : '‹'}
-              </span>
-            </button>
-          )}
+          <button
+            type="button"
+            className={`sidebar-edge-toggle ${sidebarOpen ? 'open' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSidebar();
+            }}
+            title={sidebarOpen ? 'Hide studio panel (B)' : 'Show studio panel (B)'}
+            aria-label={sidebarOpen ? 'Hide studio panel' : 'Show studio panel'}
+            aria-expanded={sidebarOpen}
+          >
+            <span className="sidebar-edge-chevron" aria-hidden>
+              {sidebarOpen ? '›' : '‹'}
+            </span>
+          </button>
 
           <aside
-            className={`sidebar ${playerOnly ? 'sidebar-overlay' : ''} ${playerOnly && !fsSidebarOpen ? 'is-collapsed' : ''}`}
+            className={`sidebar ${playerOnly ? 'sidebar-overlay' : ''} ${sidebarOpen ? '' : 'is-collapsed'}`}
             onMouseMove={(e) => {
               e.stopPropagation();
               bumpChrome();
@@ -1142,23 +1181,13 @@ export default function App() {
               <div className="sidebar-brand-actions">
                 <button
                   type="button"
-                  className="btn compact-btn sidebar-home-btn"
-                  onClick={goHome}
-                  title="Back to home"
+                  className="btn icon sidebar-dismiss"
+                  onClick={toggleSidebar}
+                  title="Hide panel (B)"
+                  aria-label="Hide studio panel"
                 >
-                  Home
+                  ›
                 </button>
-                {playerOnly && (
-                  <button
-                    type="button"
-                    className="btn icon sidebar-dismiss"
-                    onClick={() => setFsSidebarOpen(false)}
-                    title="Hide panel (B)"
-                    aria-label="Hide studio panel"
-                  >
-                    ›
-                  </button>
-                )}
               </div>
             </div>
 
@@ -1211,14 +1240,8 @@ export default function App() {
                   <SoundPanel
                     instrumentId={instrumentId}
                     sf2Name={sf2Name}
-                    volume={volume}
                     onInstrumentChange={(id) => {
                       setInstrumentId(id);
-                      setActiveScenePresetId(null);
-                    }}
-                    onVolumeChange={(v) => {
-                      setVolume(v);
-                      setActiveScenePresetId(null);
                     }}
                     onSf2Loaded={setSf2Name}
                   />

@@ -294,6 +294,7 @@ export async function bakeOfflineVideo(opts: BakeOptions): Promise<Blob> {
 
   const engine = new VisualizerEngine();
   engine.reset();
+  await engine.prepareStageImage(settings);
 
   const target = new BufferTarget();
   const output = new Output({

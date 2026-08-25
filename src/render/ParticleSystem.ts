@@ -52,7 +52,7 @@ export class ParticleSystem {
   private particles: Particle[] = [];
   private flashes: Flash[] = [];
 
-  constructor(poolSize = 5500) {
+  constructor(poolSize = 2000) {
     for (let i = 0; i < poolSize; i++) {
       this.particles.push(this.blank());
     }
