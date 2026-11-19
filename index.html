@@ -4,16 +4,99 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lumenote - Multi-track MIDI Visualizer</title>
+    <meta name="description" content="Free MIDI piano visualizer. Play live with your keyboard or turn a MIDI file into a video. No watermark, no account." />
+    <title>Lumenote · MIDI piano visualizer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700&family=Instrument+Serif:ital@0;1&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <canvas id="stage"></canvas>
+
+    <div id="ui">
+      <header class="top">
+        <div class="brand"><span class="dot"></span>lumenote</div>
+        <div class="actions">
+          <button id="btn-open" class="btn">Open MIDI</button>
+          <button id="btn-midi" class="btn pill" title="Connect a MIDI keyboard"><span class="led"></span><span class="label">Keyboard</span></button>
+          <button id="btn-look" class="btn">Look</button>
+          <button id="btn-export" class="btn primary" disabled>Export video</button>
+        </div>
+      </header>
+
+      <div id="empty" class="empty">
+        <h1>Play something.</h1>
+        <p>Drop a <b>.mid</b> file anywhere, or connect a MIDI keyboard and just play.</p>
+        <div class="row">
+          <button id="empty-open" class="btn primary">Open MIDI file</button>
+          <button id="empty-midi" class="btn">Connect keyboard</button>
+        </div>
+      </div>
+
+      <aside id="panel" class="panel" hidden>
+        <section>
+          <h3>Look</h3>
+          <div id="looks" class="looks"></div>
+        </section>
+        <section>
+          <h3>Hands</h3>
+          <div class="hands">
+            <label><input type="color" id="c-left" /><span>Left</span></label>
+            <label><input type="color" id="c-right" /><span>Right</span></label>
+          </div>
+        </section>
+        <section class="sliders">
+          <label>Speed <input type="range" id="s-speed" min="1" max="5" step="0.1" /></label>
+          <label>Glow <input type="range" id="s-glow" min="0" max="2" step="0.05" /></label>
+          <label>Sparks <input type="range" id="s-sparks" min="0" max="1.5" step="0.05" /></label>
+          <label>Volume <input type="range" id="s-volume" min="0" max="1.2" step="0.01" /></label>
+        </section>
+        <button id="btn-reset" class="link">Reset look</button>
+      </aside>
+
+      <footer id="transport" class="transport" hidden>
+        <button id="btn-play" class="play" aria-label="Play"><svg viewBox="0 0 24 24"><path id="play-icon" d="M8 5v14l11-7z" /></svg></button>
+        <span id="time" class="time">0:00</span>
+        <input id="seek" type="range" min="0" max="1000" value="0" />
+        <span id="dur" class="time">0:00</span>
+        <span id="song-name" class="song"></span>
+      </footer>
+    </div>
+
+    <dialog id="export">
+      <h2>Export video</h2>
+      <div class="opt">
+        <span>Format</span>
+        <div class="seg" data-name="format">
+          <button data-v="landscape" class="on">16:9</button>
+          <button data-v="portrait">9:16 (Shorts / Reels)</button>
+        </div>
+      </div>
+      <div class="opt">
+        <span>Quality</span>
+        <div class="seg" data-name="quality">
+          <button data-v="720">720p</button>
+          <button data-v="1080" class="on">1080p</button>
+          <button data-v="1440">1440p</button>
+          <button data-v="2160">4K</button>
+        </div>
+      </div>
+      <div class="opt">
+        <span>Frame rate</span>
+        <div class="seg" data-name="fps">
+          <button data-v="30">30 fps</button>
+          <button data-v="60" class="on">60 fps</button>
+        </div>
+      </div>
+      <div class="progress" hidden><div class="bar"></div><span class="plabel"></span></div>
+      <div class="row end">
+        <button id="exp-cancel" class="btn">Close</button>
+        <button id="exp-go" class="btn primary">Export MP4</button>
+      </div>
+    </dialog>
+
+    <input id="file" type="file" accept=".mid,.midi,audio/midi" hidden />
+    <div id="toast" class="toast"></div>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

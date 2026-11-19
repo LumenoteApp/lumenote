@@ -1,23 +1,26 @@
-# Agent instructions (Lumenote)
+# Agent instructions (Lumenote v2)
 
-You are working on **Lumenote**, a browser MIDI piano visualizer.
+Lumenote is a browser MIDI piano visualizer: live play with Web MIDI, and offline MP4 export. Vanilla TypeScript + Vite, no framework.
 
-## Before coding
+## Layout
 
-1. If present, read **`docs/SESSION_NOTES.md`** (local handoff only - not on GitHub).  
-2. Skim **`docs/ARCHITECTURE.md`** if touching engine/render.  
-3. Project root: the clone of this repo (folder name may vary).  
-4. Remote: `https://github.com/LumenoteApp/lumenote`
+- `src/midi.ts`: parse MIDI into `Song` (notes with `end` = key up, `soundEnd` = with sustain pedal, `hand` 0/1).
+- `src/looks.ts`: the looks and `Settings` (look, hands, fall, glow, sparks). Keep the setting surface small on purpose.
+- `src/render/Renderer.ts` + `shaders.ts`: WebGL2. One instanced shape pass (notes, keys, glows, sparks), then bloom, then tonemap / vignette / grain.
+- `src/audio/Piano.ts`: sampler used both realtime and in `OfflineAudioContext`.
+- `src/audio/Player.ts`: transport + scheduling. `src/live.ts`: Web MIDI input.
+- `src/export.ts`: Mediabunny export (`startAt`, `maxSeconds`, `externalAudio`, `overlay` options).
+- `src/main.ts`: UI wiring.
 
 ## Hard rules
 
-- Do **not** break playback reanchor / mute-only reschedule (color changes must not desync audio).  
-- Do **not** start Web Audio / Tone until a user gesture.  
-- Do **not** pass Tone's wrapped AudioContext into Spessa `WorkletSynthesizer` (use native context).  
-- Keep live + bake painting in **`VisualizerEngine`** in sync.  
-- Do **not** commit secrets, `.env`, large private soundfonts, or `docs/SESSION_NOTES.md`.  
-- Confirm before force-push, deploy, or destructive git.  
-- Prefer small, focused diffs; match existing style. No em dashes in user-facing copy.
+- Live view and export must render through the same `Renderer.frame(t, dt)`. Do not fork drawing code for export.
+- Particles must stay deterministic for a given `dt` sequence (seeded RNG), so exports are reproducible.
+- Do not create or resume an `AudioContext` before a user gesture.
+- Offline audio schedules voices in blocks (`renderSongAudio`). Do not go back to creating every voice up front: thousands of idle nodes make long songs extremely slow.
+- Keep the UI small: a few looks and sliders, not dozens of parameters.
+- No em dashes in user-facing copy.
+- Confirm before force-push, deploy, or destructive git.
 
 ## Verify
 
@@ -25,10 +28,8 @@ You are working on **Lumenote**, a browser MIDI piano visualizer.
 npm run build
 ```
 
-## New session prompt (copy-paste)
+Then check the app in the browser (load a MIDI, play, export a short clip).
 
-```
-Continue Lumenote (multi-track MIDI visualizer).
-Clone: https://github.com/LumenoteApp/lumenote
-Read docs/ARCHITECTURE.md (and docs/SESSION_NOTES.md if it exists locally).
-```
+## Related (not in this repo)
+
+The YouTube content pipeline ("Lumenote Studio") lives in a separate local folder and imports `src/` from this repo by path. Keep the exports of `midi.ts`, `looks.ts`, `render/Renderer.ts` and `export.ts` stable, or update the studio at the same time.
