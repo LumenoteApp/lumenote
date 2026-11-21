@@ -41,6 +41,13 @@ npm run dev
 
 Open the URL Vite prints (http://localhost:5173). Production build: `npm run build`, output in `dist/`.
 
+## Put it live (lumenote.nl)
+
+1. Copy `.env.deploy.example` to `.env.deploy` and fill in the FTP details (same as FileZilla). This file is never committed.
+2. Run `npm run deploy` (or double-click `Deploy Lumenote.bat`).
+
+It builds, shows which files will change, asks before touching anything, downloads a backup of the live site to `backups/`, and then uploads. Options: `--dry` (only show the plan), `--yes` (no question), `--clean` (remove old build files from `assets/`).
+
 ## How it is built
 
 | Part | File |
