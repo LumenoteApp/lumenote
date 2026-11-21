@@ -31,6 +31,7 @@ const audio = new Audio();
 audio.volume = Number(localStorage.getItem('lumenote.v2.volume') ?? 0.9);
 const player = new Player(audio);
 const live = new LiveInput(audio);
+player.midi = live;
 let song: Song | null = null;
 
 // ------------------------------------------------------------------ render loop
@@ -174,23 +175,54 @@ window.addEventListener('pointerdown', wake);
 // ------------------------------------------------------------------ live MIDI
 
 const midiBtn = $('btn-midi');
+const midiPanel = $('midi-panel');
+const midiIn = $<HTMLSelectElement>('midi-in');
+const midiOut = $<HTMLSelectElement>('midi-out');
+const midiLocal = $<HTMLInputElement>('midi-local');
+
+function options(sel: HTMLSelectElement, first: [string, string], ports: { id: string; name: string }[], value: string) {
+  sel.replaceChildren(
+    ...[first, ...ports.map((p): [string, string] => [p.id, p.name])].map(([v, label]) => new Option(label, v)),
+  );
+  // Keep a saved choice visible even while that device is unplugged.
+  if (value && ![...sel.options].some((o) => o.value === value)) sel.add(new Option('(not connected)', value));
+  sel.value = value || first[0];
+}
+
 function midiStatus() {
   midiBtn.classList.toggle('on', live.connected);
-  midiBtn.querySelector('.label')!.textContent = live.connected ? live.devices[0] : 'Keyboard';
-  midiBtn.title = live.connected ? live.devices.join(', ') : 'Connect a MIDI keyboard';
+  const n = live.devices.length;
+  midiBtn.querySelector('.label')!.textContent = !live.connected ? 'Keyboard' : n > 1 ? `${n} keyboards` : live.devices[0];
+  const out = live.output?.name;
+  midiBtn.title = (live.connected ? live.devices.join(', ') : 'Connect a MIDI keyboard') + (out ? ` · out: ${out}` : '');
+  options(midiIn, ['all', 'All keyboards'], live.inputs, live.prefs.input);
+  options(midiOut, ['', 'None'], live.outputs, live.prefs.output);
+  midiLocal.checked = live.prefs.local;
+  midiLocal.disabled = !live.output;
 }
 live.onChange = midiStatus;
+midiIn.onchange = () => live.setInput(midiIn.value);
+midiOut.onchange = () => live.setOutput(midiOut.value);
+midiLocal.onchange = () => live.setLocal(midiLocal.checked);
+
 async function connectMidi() {
   try {
     await live.connect();
     if (!live.connected) toast('MIDI is on. Plug in a keyboard and it shows up here.');
-    else toast(`Connected: ${live.devices.join(', ')}`);
+    return true;
   } catch (e) {
     toast((e as Error).message);
+    return false;
   }
 }
-midiBtn.onclick = connectMidi;
-$('empty-midi').onclick = connectMidi;
+midiBtn.onclick = async () => {
+  if (!live.enabled && !(await connectMidi())) return;
+  panel.hidden = true;
+  midiPanel.hidden = !midiPanel.hidden;
+};
+$('empty-midi').onclick = async () => {
+  if ((await connectMidi()) && live.connected) toast(`Connected: ${live.devices.join(', ')}`);
+};
 void live.autoConnect();
 // Audio needs one click before it can sound; any click on the page counts.
 window.addEventListener('pointerdown', () => void audio.ensure().catch(() => {}), { once: true });
@@ -198,7 +230,10 @@ window.addEventListener('pointerdown', () => void audio.ensure().catch(() => {})
 // ------------------------------------------------------------------ look panel
 
 const panel = $('panel');
-$('btn-look').onclick = () => (panel.hidden = !panel.hidden);
+$('btn-look').onclick = () => {
+  midiPanel.hidden = true;
+  panel.hidden = !panel.hidden;
+};
 
 const looksEl = $('looks');
 for (const look of LOOKS) {

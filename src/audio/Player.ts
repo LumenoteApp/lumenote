@@ -1,5 +1,6 @@
 import type { Song } from '../midi';
 import { loadSamples, Piano, type Voice } from './Piano';
+import type { LiveInput } from '../live';
 
 /** Shared realtime audio: song playback + live keyboard. Created on first user gesture. */
 export class Audio {
@@ -43,6 +44,8 @@ export class Player {
   /** Wall clock fallback while audio is still loading. */
   private wallAnchor = 0;
   onEnd: () => void = () => {};
+  /** MIDI out for song playback (and whether the built-in piano should still sound). */
+  midi: LiveInput | null = null;
 
   constructor(private audio: Audio) {}
 
@@ -80,6 +83,7 @@ export class Player {
     const now = this.audio.now;
     for (const { v } of this.voices) v.stop(now);
     this.voices = [];
+    this.midi?.allOff();
   }
 
   seek(t: number) {
@@ -110,7 +114,10 @@ export class Player {
     const notes = song.notes;
     while (this.cursor < notes.length && notes[this.cursor].start < horizon) {
       const n = notes[this.cursor++];
-      if (!piano || ctx.state !== 'running' || n.start < t - 0.05) continue;
+      if (n.start < t - 0.05) continue;
+      this.midi?.playNote(n.pitch, n.velocity, n.start - t, n.soundEnd - t);
+      if (this.midi && !this.midi.localSound) continue;
+      if (!piano || ctx.state !== 'running') continue;
       const at = this.anchor + (n.start - this.offset);
       const v = piano.play(n.pitch, n.velocity, at);
       if (v) {

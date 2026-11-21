@@ -287,6 +287,46 @@ input[type='range']::-moz-range-thumb {
   background: var(--fg);
 }
 
+select {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+select:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+select option {
+  background: #12141c;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.check:has(input:disabled) {
+  opacity: 0.4;
+  cursor: default;
+}
+.check input {
+  accent-color: var(--fg);
+  margin: 0;
+}
+.hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
 .link {
   background: none;
   border: none;

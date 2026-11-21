@@ -54,6 +54,19 @@
         <button id="btn-reset" class="link">Reset look</button>
       </aside>
 
+      <aside id="midi-panel" class="panel" hidden>
+        <section>
+          <h3>MIDI in</h3>
+          <select id="midi-in"></select>
+        </section>
+        <section>
+          <h3>MIDI out</h3>
+          <select id="midi-out"></select>
+          <label class="check"><input type="checkbox" id="midi-local" /> Also play the built-in piano</label>
+          <p class="hint">Sends what you play and the open song to Pianoteq, a synth or a digital piano.</p>
+        </section>
+      </aside>
+
       <footer id="transport" class="transport" hidden>
         <button id="btn-play" class="play" aria-label="Play"><svg viewBox="0 0 24 24"><path id="play-icon" d="M8 5v14l11-7z" /></svg></button>
         <span id="time" class="time">0:00</span>
