@@ -20,9 +20,10 @@
 
 - **Falling notes** over a full 88-key piano, with real bloom, a glow where keys are hit, and sparks.
 - **Seven looks** (Midnight, Ember, Aurora, Sakura, Forest, Copper, Mono). Pick one, change the two hand colors if you like, done.
-- **Three sliders**: speed, glow, sparks. That's all the tuning there is.
+- **Three note styles**: Classic, Flame and Plasma.
+- **Four sliders**: speed, glow, sparks and motion (how fast the haze, sparks, flames and plasma move). That's all the tuning there is.
 - **Hands are colored automatically.** Two-track MIDI uses the tracks; a single-track piano transcription is split into left and right by pitch.
-- **Live play** with any MIDI keyboard (Web MIDI), including the sustain pedal. Notes rise from the keys as you play.
+- **Live play** with any MIDI keyboard (Web MIDI), including the sustain pedal. Notes rise from the keys as you play. Pick one keyboard or all, and send what you play and the open song to a MIDI out (Pianoteq, a synth, a digital piano).
 - **Piano sound**: sampled Salamander Grand, darker when you play softly.
 - **Video export** to MP4 (H.264 + AAC): 16:9 or 9:16 (Shorts / Reels), 720p to 4K, 30 or 60 fps. Every frame is rendered at an exact timestep, so the video is smooth even on a slow machine.
 

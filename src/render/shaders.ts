@@ -72,7 +72,7 @@ void main() {
 
 /**
  * kinds: 0 note, 1 white key, 2 black key, 3 glow (additive), 4 spark (additive), 5 flat / gradient
- * params: x kind, y radius, z active / pressed, w extra
+ * params: x kind, y radius, z active / pressed, w extra (notes: 0..1 seed)
  * Output is premultiplied; additive shapes write alpha 0.
  */
 export const SHAPE_FS = /* glsl */ `#version 300 es
@@ -82,7 +82,19 @@ in vec2 vSize;
 in vec4 vColor;
 in vec4 vParams;
 uniform float uScale;
+uniform float uAnim;
+uniform float uStyle;
 out vec4 o;
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1,0)), u.x), mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), u.x), u.y);
+}
+float fbm3(vec2 p) {
+  return 0.55 * noise(p) + 0.3 * noise(p * 2.07 + 3.1) + 0.15 * noise(p * 4.13 + 7.7);
+}
 
 float sdRB(vec2 p, vec2 b, float r) {
   vec2 q = abs(p) - b + r;
@@ -112,6 +124,34 @@ void main() {
     // Lit while sounding.
     col *= 1.0 + act * 1.5;
     col += act * c * 0.35 * t;
+
+    // Note styles. y is measured in note widths so the pattern looks the same on short and long notes.
+    float seed = vParams.w;
+    vec2 nuv = vec2(xs, vLocal.y / max(vSize.x, 1.0));
+    float edge = 1.0 - rim * 0.6;
+    if (uStyle > 0.5 && uStyle < 1.5) {
+      // Flame: a few tall, licking tongues climbing up the note, hottest at the leading edge.
+      vec2 q = vec2(xs * 0.8, nuv.y * 0.55);
+      float warp = noise(q * 2.0 + vec2(seed * 9.0, uAnim * 1.2)) - 0.5;
+      vec2 p = vec2(q.x + warp * 0.5, q.y + uAnim * 0.9) * 2.0 + seed * 13.0;
+      float body = fbm3(p) - abs(xs + warp * 0.4) * 0.45 + (t - 0.5) * 0.25;
+      float f = smoothstep(0.33, 0.75, body) * edge;
+      col *= 0.5 + 0.2 * t;
+      col += c * f * (1.0 + act * 0.8);
+      col += mix(c, vec3(1.0, 0.85, 0.6), 0.7) * pow(f, 2.5) * (0.6 + act * 0.6);
+    } else if (uStyle > 1.5) {
+      // Plasma: bright filaments where a few moving sine fields line up.
+      float a2 = uAnim;
+      float v = sin(xs * 2.6 + a2 * 1.3 + seed * 6.0)
+              + sin(nuv.y * 1.9 - a2 * 1.7)
+              + sin((xs * 1.5 + nuv.y) * 1.4 + a2 * 1.1 + seed * 3.0)
+              + sin(length(vec2(xs * 1.8, nuv.y * 0.8 - sin(a2 * 0.7))) * 3.0 - a2 * 2.0);
+      float lines = pow(1.0 - abs(sin(v * 1.6)), 6.0) * edge;
+      float swell = 0.5 + 0.5 * sin(v * 0.8 + a2);
+      col *= 0.62 + 0.3 * swell;
+      col += mix(c, vec3(1.0), 0.5) * lines * (0.75 + act * 0.8);
+      col += mix(c, c.gbr, 0.25) * swell * 0.22;
+    }
     o = vec4(col, 1.0) * a * vColor.a;
     return;
   }

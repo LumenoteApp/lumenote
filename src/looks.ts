@@ -22,6 +22,14 @@ export const LOOKS: Look[] = [
   { id: 'mono', name: 'Mono', bg: ['#050505', '#111111'], hands: ['#9aa3ad', '#f2f4f7'], glow: 0.6, sparks: 0.5 },
 ];
 
+/** How the falling notes are filled. */
+export const NOTE_STYLES = [
+  { id: 'classic', name: 'Classic' },
+  { id: 'flame', name: 'Flame' },
+  { id: 'plasma', name: 'Plasma' },
+] as const;
+export type NoteStyle = (typeof NOTE_STYLES)[number]['id'];
+
 export type Settings = {
   look: string;
   hands: [string, string];
@@ -29,11 +37,14 @@ export type Settings = {
   fall: number;
   glow: number;
   sparks: number;
+  style: NoteStyle;
+  /** Speed of everything that animates (haze, sparks, flame, plasma). 0 = still, 1 = normal. */
+  motion: number;
 };
 
 export function settingsForLook(id: string): Settings {
   const look = LOOKS.find((l) => l.id === id) ?? LOOKS[0];
-  return { look: look.id, hands: [...look.hands], fall: 2.4, glow: look.glow, sparks: look.sparks };
+  return { look: look.id, hands: [...look.hands], fall: 2.4, glow: look.glow, sparks: look.sparks, style: 'classic', motion: 1 };
 }
 
 export function hexToRgb(hex: string): [number, number, number] {

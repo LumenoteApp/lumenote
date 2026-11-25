@@ -25,6 +25,12 @@ const MAX_SPARKS = 4000;
 const BLOOM_LEVELS = 6;
 
 const toLinear = (c: RGB): RGB => [c[0] ** 2.2, c[1] ** 2.2, c[2] ** 2.2];
+const STYLE_ID: Record<string, number> = { classic: 0, flame: 1, plasma: 2 };
+/** Stable 0..1 per note, so each note's flame or plasma pattern is its own and does not jump. */
+const noteSeed = (pitch: number, start: number) => {
+  const x = Math.sin(pitch * 12.9898 + start * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+};
 
 /** Small deterministic PRNG so exports are reproducible. */
 function mulberry32(seed: number) {
@@ -87,6 +93,8 @@ export class Renderer {
   private glowX = 0.5;
   private lastOnsetSeen = new Map<string, number>();
   private time = 0;
+  /** Animation clock: runs at the Motion setting's speed. */
+  private anim = 0;
 
   constructor(canvas: HTMLCanvasElement, opts: { preserve?: boolean } = {}) {
     this.canvas = canvas;
@@ -226,6 +234,7 @@ export class Renderer {
     const s = this.settings;
     const pps = keyY / s.fall;
     this.time += dt;
+    this.anim += dt * (s.motion ?? 1);
     this.count = 0;
 
     // Precompute key columns.
@@ -290,7 +299,7 @@ export class Renderer {
           0,
           Math.min(d.w * 0.32, 7 * scale),
           d.act,
-          0,
+          noteSeed(n.pitch, n.start),
         );
       }
     }
@@ -307,7 +316,7 @@ export class Renderer {
       const bottom = ln.end === null ? keyY : keyY - (liveNow - ln.end) * pps;
       const held = ln.end === null;
       if (bottom > 0 && bottom - top > 0.5) {
-        this.push(cx - w / 2, Math.max(-20, top), w, bottom - Math.max(-20, top), c, 1, 0, Math.min(w * 0.32, 7 * scale), held ? 1 : 0, 0);
+        this.push(cx - w / 2, Math.max(-20, top), w, bottom - Math.max(-20, top), c, 1, 0, Math.min(w * 0.32, 7 * scale), held ? 1 : 0, noteSeed(ln.pitch, ln.start));
       }
       if (held) {
         const age = liveNow - ln.start;
@@ -400,7 +409,7 @@ export class Renderer {
     this.u1(this.bgProg, 'uGlowAmt', this.glowAmt * s.glow);
     this.u1(this.bgProg, 'uGlowX', this.glowX * W);
     this.u1(this.bgProg, 'uKeyY', keyY);
-    this.u1(this.bgProg, 'uTime', this.time);
+    this.u1(this.bgProg, 'uTime', this.anim);
     gl.bindVertexArray(this.emptyVao);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
@@ -409,6 +418,8 @@ export class Renderer {
     gl.useProgram(this.shapeProg);
     this.u2(this.shapeProg, 'uRes', W, H);
     this.u1(this.shapeProg, 'uScale', scale);
+    this.u1(this.shapeProg, 'uAnim', this.anim);
+    this.u1(this.shapeProg, 'uStyle', STYLE_ID[s.style] ?? 0);
     gl.bindVertexArray(this.shapeVao);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuf);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.data, 0, this.count * FLOATS);
@@ -500,7 +511,7 @@ export class Renderer {
       const o = i * 10;
       sp[o + 4] += dt;
       if (sp[o + 4] >= sp[o + 5]) continue;
-      sp[o + 2] = sp[o + 2] * drag + Math.sin(sp[o + 1] * 0.03 + this.time * 2 + i) * 18 * scale * dt;
+      sp[o + 2] = sp[o + 2] * drag + Math.sin(sp[o + 1] * 0.03 + this.anim * 2 + i) * 18 * scale * dt;
       sp[o + 3] = sp[o + 3] * drag - 40 * scale * dt;
       sp[o] += sp[o + 2] * dt;
       sp[o + 1] += sp[o + 3] * dt;

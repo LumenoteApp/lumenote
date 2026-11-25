@@ -1,6 +1,6 @@
 import './style.css';
 import { parseMidi, type Song } from './midi';
-import { LOOKS, settingsForLook, type Settings } from './looks';
+import { LOOKS, NOTE_STYLES, settingsForLook, type Settings } from './looks';
 import { Renderer } from './render/Renderer';
 import { Audio, Player } from './audio/Player';
 import { LiveInput } from './live';
@@ -245,10 +245,23 @@ for (const look of LOOKS) {
   b.style.setProperty('--b', look.hands[1]);
   b.innerHTML = `<i></i><span>${look.name}</span>`;
   b.onclick = () => {
-    settings = { ...settingsForLook(look.id), fall: settings.fall };
+    // A look sets colors, glow and sparks; your speed, note style and motion stay.
+    settings = { ...settingsForLook(look.id), fall: settings.fall, style: settings.style, motion: settings.motion };
     apply();
   };
   looksEl.appendChild(b);
+}
+
+const stylesEl = $('styles');
+for (const st of NOTE_STYLES) {
+  const b = document.createElement('button');
+  b.dataset.id = st.id;
+  b.textContent = st.name;
+  b.onclick = () => {
+    settings.style = st.id;
+    apply();
+  };
+  stylesEl.appendChild(b);
 }
 
 const cl = $<HTMLInputElement>('c-left');
@@ -257,6 +270,7 @@ const sp = $<HTMLInputElement>('s-speed');
 const gl = $<HTMLInputElement>('s-glow');
 const sk = $<HTMLInputElement>('s-sparks');
 const vol = $<HTMLInputElement>('s-volume');
+const mo = $<HTMLInputElement>('s-motion');
 
 function apply() {
   renderer.setSettings(settings);
@@ -267,6 +281,8 @@ function apply() {
   sp.value = String(6 - settings.fall);
   gl.value = String(settings.glow);
   sk.value = String(settings.sparks);
+  mo.value = String(settings.motion);
+  for (const b of stylesEl.children) (b as HTMLElement).classList.toggle('on', (b as HTMLElement).dataset.id === settings.style);
   for (const b of looksEl.children) (b as HTMLElement).classList.toggle('on', (b as HTMLElement).dataset.id === settings.look);
 }
 cl.oninput = () => {
@@ -283,6 +299,10 @@ sp.oninput = () => {
 };
 gl.oninput = () => {
   settings.glow = Number(gl.value);
+  apply();
+};
+mo.oninput = () => {
+  settings.motion = Number(mo.value);
   apply();
 };
 sk.oninput = () => {
